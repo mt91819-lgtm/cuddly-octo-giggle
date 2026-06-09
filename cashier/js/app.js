@@ -128,7 +128,7 @@ const App = (() => {
      الأقسام غير المكتملة بعد تظهر كـ "قريبًا" حتى تُبنى في مراحلها. */
   const SECTIONS = [
     { id: 'dashboard', label: 'لوحة التحكم', icon: '📊', ready: true },
-    { id: 'pos', label: 'البيع (POS)', icon: '🛒', ready: false },
+    { id: 'pos', label: 'البيع (POS)', icon: '🛒', ready: true },
     { id: 'products', label: 'المنتجات', icon: '📦', ready: true },
     { id: 'inventory', label: 'المخزون والجرد', icon: '🏷️', ready: false },
     { id: 'returns', label: 'المرتجعات', icon: '↩️', ready: false },
@@ -278,10 +278,11 @@ const App = (() => {
         return renderDashboard(content);
       case 'settings':
         return renderSettings(content);
-      default:
-        // الأقسام التي ستُبنى في المراحل القادمة
-        if (window[capitalize(section.id)] && typeof window[capitalize(section.id)].render === 'function') {
-          return window[capitalize(section.id)].render(content);
+      default: {
+        // الأقسام المبنية في وحدات منفصلة (تُربط بأسمائها الصريحة)
+        const mod = MODULES[section.id] && window[MODULES[section.id]];
+        if (mod && typeof mod.render === 'function') {
+          return mod.render(content);
         }
         content.innerHTML = `
           <div class="placeholder">
@@ -289,12 +290,22 @@ const App = (() => {
             <h3>${Utils.escapeHtml(section.label)}</h3>
             <p>هذا القسم سيتم تفعيله في مرحلة لاحقة من المشروع.</p>
           </div>`;
+      }
     }
   }
 
-  function capitalize(s) {
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  }
+  /* خريطة ربط أقسام القائمة بأسماء الوحدات العامة (window) */
+  const MODULES = {
+    pos: 'POS',
+    products: 'Products',
+    inventory: 'Inventory',
+    returns: 'Returns',
+    shifts: 'Shifts',
+    expenses: 'Expenses',
+    reports: 'Reports',
+    users: 'Users',
+    audit: 'AuditView',
+  };
 
   /* ---------- لوحة التحكم المبدئية ---------- */
   async function renderDashboard(content) {
