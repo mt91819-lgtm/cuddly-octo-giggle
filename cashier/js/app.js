@@ -129,7 +129,7 @@ const App = (() => {
   const SECTIONS = [
     { id: 'dashboard', label: 'لوحة التحكم', icon: '📊', ready: true },
     { id: 'pos', label: 'البيع (POS)', icon: '🛒', ready: false },
-    { id: 'products', label: 'المنتجات', icon: '📦', ready: false },
+    { id: 'products', label: 'المنتجات', icon: '📦', ready: true },
     { id: 'inventory', label: 'المخزون والجرد', icon: '🏷️', ready: false },
     { id: 'returns', label: 'المرتجعات', icon: '↩️', ready: false },
     { id: 'shifts', label: 'الورديات', icon: '⏱️', ready: false },
