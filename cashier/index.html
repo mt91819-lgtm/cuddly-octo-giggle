@@ -11,6 +11,19 @@
       <div class="loading">جارٍ تشغيل النظام…</div>
     </div>
 
+    <!-- عرض أي خطأ غير متوقع بدل ترك الشاشة بيضاء -->
+    <script>
+      window.addEventListener('error', function (e) {
+        var app = document.getElementById('app');
+        if (app) {
+          app.innerHTML =
+            '<div class="fatal">حدث خطأ أثناء التشغيل:<br>' +
+            (e.message || e.error || 'خطأ غير معروف') +
+            '<br><small>افتح أدوات المطوّر (F12) ← Console لمزيد من التفاصيل.</small></div>';
+        }
+      });
+    </script>
+
     <!-- ترتيب التحميل مهم: قاعدة البيانات أولًا، ثم الوحدات، ثم المتحكم -->
     <script src="js/db.js"></script>
     <script src="js/settings.js"></script>
