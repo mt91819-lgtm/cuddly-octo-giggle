@@ -132,7 +132,7 @@ const App = (() => {
     { id: 'pos', label: 'البيع (POS)', icon: '🛒', ready: true },
     { id: 'products', label: 'المنتجات', icon: '📦', ready: true },
     { id: 'inventory', label: 'المخزون والجرد', icon: '🏷️', ready: true },
-    { id: 'returns', label: 'المرتجعات', icon: '↩️', ready: false },
+    { id: 'returns', label: 'المرتجعات', icon: '↩️', ready: true },
     { id: 'shifts', label: 'الورديات', icon: '⏱️', ready: false },
     { id: 'expenses', label: 'المصروفات', icon: '💸', ready: false },
     { id: 'reports', label: 'التقارير', icon: '📈', ready: false },

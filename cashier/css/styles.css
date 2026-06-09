@@ -484,6 +484,22 @@ input, select, button, textarea {
 .loading { padding: 40px; text-align: center; color: var(--text-muted); }
 .fatal { padding: 40px; text-align: center; color: var(--danger); }
 
+/* ---------- المرتجعات ---------- */
+.btn-danger { background: var(--danger); color: #fff; }
+.ret-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.ret-total { font-size: 1.05rem; }
+.ret-line-val { font-weight: 700; }
+.ret-form {
+  margin-top: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  max-width: 560px;
+}
+.ret-summary { font-size: 1.15rem; margin: 10px 0; }
+.ret-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
 /* ---------- التبويبات ---------- */
 .tabs {
   display: flex;
