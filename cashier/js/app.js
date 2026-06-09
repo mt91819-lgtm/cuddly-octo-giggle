@@ -79,7 +79,7 @@ const Utils = (() => {
             <div class="modal-header">${escapeHtml(title || '')}</div>
             <div class="modal-body">${bodyHtml || ''}</div>
             <div class="modal-footer">
-              <button class="btn btn-ghost" data-act="cancel">${escapeHtml(cancelText)}</button>
+              ${cancelText ? `<button class="btn btn-ghost" data-act="cancel">${escapeHtml(cancelText)}</button>` : ''}
               <button class="btn btn-primary" data-act="confirm">${escapeHtml(confirmText)}</button>
             </div>
           </div>
@@ -89,7 +89,8 @@ const Utils = (() => {
         overlay.remove();
         resolve(val);
       };
-      overlay.querySelector('[data-act="cancel"]').onclick = () => close(null);
+      const cancelBtn = overlay.querySelector('[data-act="cancel"]');
+      if (cancelBtn) cancelBtn.onclick = () => close(null);
       overlay.querySelector('[data-act="confirm"]').onclick = () => {
         const form = overlay.querySelector('form');
         if (form) {
@@ -130,7 +131,7 @@ const App = (() => {
     { id: 'dashboard', label: 'لوحة التحكم', icon: '📊', ready: true },
     { id: 'pos', label: 'البيع (POS)', icon: '🛒', ready: true },
     { id: 'products', label: 'المنتجات', icon: '📦', ready: true },
-    { id: 'inventory', label: 'المخزون والجرد', icon: '🏷️', ready: false },
+    { id: 'inventory', label: 'المخزون والجرد', icon: '🏷️', ready: true },
     { id: 'returns', label: 'المرتجعات', icon: '↩️', ready: false },
     { id: 'shifts', label: 'الورديات', icon: '⏱️', ready: false },
     { id: 'expenses', label: 'المصروفات', icon: '💸', ready: false },
