@@ -205,6 +205,12 @@ const Auth = (() => {
     }
   }
 
+  /* تحديث بيانات الجلسة بعد تعديل المستخدم الحالي (دون إعادة دخول) */
+  function refreshSession(user) {
+    if (!user) return;
+    _setSession(user);
+  }
+
   function currentUser() {
     return _current;
   }
@@ -240,6 +246,7 @@ const Auth = (() => {
     login,
     logout,
     restoreSession,
+    refreshSession,
     currentUser,
     isManager,
     hasPermission,

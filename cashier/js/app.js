@@ -116,7 +116,64 @@ const Utils = (() => {
     }).then((v) => v !== null);
   }
 
-  return { el, escapeHtml, money, dateKey, fmtDateTime, toast, modal, confirmBox };
+  /* بوابة موافقة المدير على العمليات الحساسة.
+   * تُرجع { ok, user }. إذا كان المستخدم الحالي مديرًا فالموافقة تلقائية. */
+  function requireManagerApproval(actionLabel) {
+    if (window.Auth && Auth.isManager()) {
+      return Promise.resolve({ ok: true, user: Auth.currentUser() });
+    }
+    return new Promise((resolve) => {
+      const overlay = el(`
+        <div class="modal-overlay"><div class="modal">
+          <div class="modal-header">🔐 موافقة المدير مطلوبة</div>
+          <form class="modal-body" id="appr-form">
+            <p>${escapeHtml(actionLabel || 'هذه عملية حساسة وتتطلب موافقة المدير.')}</p>
+            <label class="field">كلمة مرور المدير أو PIN
+              <input type="password" name="secret" autocomplete="off" required />
+            </label>
+            <div class="form-error" id="appr-err"></div>
+          </form>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" data-act="cancel">إلغاء</button>
+            <button class="btn btn-primary" data-act="ok">موافقة</button>
+          </div>
+        </div></div>`);
+      document.body.appendChild(overlay);
+      const form = overlay.querySelector('#appr-form');
+      const close = (val) => {
+        overlay.remove();
+        resolve(val);
+      };
+      overlay.querySelector('[data-act="cancel"]').onclick = () => close({ ok: false });
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close({ ok: false });
+      });
+      const submit = async () => {
+        if (!form.reportValidity()) return;
+        const res = await Auth.verifyManager(form.secret.value);
+        if (res.ok) close({ ok: true, user: res.user });
+        else overlay.querySelector('#appr-err').textContent = res.error;
+      };
+      overlay.querySelector('[data-act="ok"]').onclick = submit;
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        submit();
+      };
+      setTimeout(() => form.secret.focus(), 50);
+    });
+  }
+
+  return {
+    el,
+    escapeHtml,
+    money,
+    dateKey,
+    fmtDateTime,
+    toast,
+    modal,
+    confirmBox,
+    requireManagerApproval,
+  };
 })();
 window.Utils = Utils;
 
@@ -126,20 +183,29 @@ const App = (() => {
   let _lockTimer = null;
 
   /* تعريف الأقسام في الشريط الجانبي.
-     الأقسام غير المكتملة بعد تظهر كـ "قريبًا" حتى تُبنى في مراحلها. */
+     perm: مفتاح الصلاحية للموظف. managerOnly: للمدير فقط. */
   const SECTIONS = [
-    { id: 'dashboard', label: 'لوحة التحكم', icon: '📊', ready: true },
-    { id: 'pos', label: 'البيع (POS)', icon: '🛒', ready: true },
-    { id: 'products', label: 'المنتجات', icon: '📦', ready: true },
-    { id: 'inventory', label: 'المخزون والجرد', icon: '🏷️', ready: true },
-    { id: 'returns', label: 'المرتجعات', icon: '↩️', ready: true },
-    { id: 'shifts', label: 'الورديات', icon: '⏱️', ready: false },
-    { id: 'expenses', label: 'المصروفات', icon: '💸', ready: false },
-    { id: 'reports', label: 'التقارير', icon: '📈', ready: false },
-    { id: 'users', label: 'الموظفون', icon: '👥', ready: false },
-    { id: 'audit', label: 'سجل العمليات', icon: '🧾', ready: false },
-    { id: 'settings', label: 'الإعدادات', icon: '⚙️', ready: true },
+    { id: 'dashboard', label: 'لوحة التحكم', icon: '📊', ready: true, perm: null },
+    { id: 'pos', label: 'البيع (POS)', icon: '🛒', ready: true, perm: 'pos' },
+    { id: 'products', label: 'المنتجات', icon: '📦', ready: true, perm: 'products' },
+    { id: 'inventory', label: 'المخزون والجرد', icon: '🏷️', ready: true, perm: 'inventory' },
+    { id: 'returns', label: 'المرتجعات', icon: '↩️', ready: true, perm: 'returns' },
+    { id: 'shifts', label: 'الورديات', icon: '⏱️', ready: false, perm: 'shifts' },
+    { id: 'expenses', label: 'المصروفات', icon: '💸', ready: false, perm: 'expenses' },
+    { id: 'reports', label: 'التقارير', icon: '📈', ready: false, perm: 'reports' },
+    { id: 'users', label: 'الموظفون', icon: '👥', ready: true, perm: null, managerOnly: true },
+    { id: 'audit', label: 'سجل العمليات', icon: '🧾', ready: false, perm: null, managerOnly: true },
+    { id: 'settings', label: 'الإعدادات', icon: '⚙️', ready: true, perm: null, managerOnly: true },
   ];
+
+  /* قائمة مفاتيح الصلاحيات المتاحة للموظفين (تُستخدم في شاشة الموظفين) */
+  const PERMISSION_KEYS = SECTIONS.filter((s) => s.perm).map((s) => ({ key: s.perm, label: s.label }));
+
+  function canSee(section) {
+    if (section.managerOnly) return Auth.isManager();
+    if (!section.perm) return true; // مثل لوحة التحكم
+    return Auth.hasPermission(section.perm);
+  }
 
   async function init() {
     try {
@@ -252,14 +318,16 @@ const App = (() => {
 
   function renderNav() {
     const nav = document.getElementById('nav');
-    nav.innerHTML = SECTIONS.map(
-      (s) => `
+    nav.innerHTML = SECTIONS.filter(canSee)
+      .map(
+        (s) => `
       <button class="nav-item" data-section="${s.id}">
         <span class="nav-icon">${s.icon}</span>
         <span class="nav-label">${Utils.escapeHtml(s.label)}</span>
         ${s.ready ? '' : '<span class="badge-soon">قريبًا</span>'}
       </button>`
-    ).join('');
+      )
+      .join('');
     nav.querySelectorAll('.nav-item').forEach((btn) => {
       btn.onclick = () => navigate(btn.dataset.section);
     });
@@ -268,6 +336,12 @@ const App = (() => {
   /* ---------- الموجّه (Router) ---------- */
   function navigate(sectionId) {
     const section = SECTIONS.find((s) => s.id === sectionId) || SECTIONS[0];
+    // حماية: منع الوصول لقسم غير مصرّح به
+    if (!canSee(section)) {
+      document.getElementById('content').innerHTML =
+        '<div class="placeholder"><div class="placeholder-icon">🔒</div><p>ليس لديك صلاحية لهذا القسم.</p></div>';
+      return;
+    }
     document.querySelectorAll('.nav-item').forEach((b) =>
       b.classList.toggle('active', b.dataset.section === section.id)
     );
@@ -387,6 +461,11 @@ const App = (() => {
         <label>مدة السماح بالمرتجع (أيام)
           <input type="number" name="returnWindowDays" min="0" value="${Number(app.returnWindowDays)}" />
         </label>
+        <label>حد الخصم الكبير (يتطلب موافقة المدير، بالجنيه)
+          <input type="number" name="largeDiscountThreshold" min="0" step="0.01" value="${Number(
+            app.largeDiscountThreshold
+          )}" />
+        </label>
         <label>قفل الشاشة التلقائي (دقائق، 0 = معطّل)
           <input type="number" name="autoLockMinutes" min="0" value="${Number(app.autoLockMinutes)}" />
         </label>
@@ -418,6 +497,7 @@ const App = (() => {
         blockSaleWhenOutOfStock: f.blockSaleWhenOutOfStock.checked,
         lowStockAlert: f.lowStockAlert.checked,
         returnWindowDays: Number(f.returnWindowDays.value) || 0,
+        largeDiscountThreshold: Number(f.largeDiscountThreshold.value) || 0,
         autoLockMinutes: Number(f.autoLockMinutes.value) || 0,
       });
       Settings.setUI({ theme: f.theme.value, accent: f.accent.value });
@@ -485,7 +565,7 @@ const App = (() => {
     };
   }
 
-  return { init, navigate };
+  return { init, navigate, renderNav, PERMISSION_KEYS };
 })();
 window.App = App;
 

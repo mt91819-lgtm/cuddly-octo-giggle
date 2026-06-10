@@ -433,6 +433,18 @@ const Products = (() => {
       const data = Object.fromEntries(new FormData(form).entries());
       try {
         if (isEdit) {
+          // تعديل الأسعار عملية حساسة تتطلب موافقة المدير
+          const priceChanged =
+            Number(data.salePrice) !== Number(p.salePrice) ||
+            Number(data.costPrice) !== Number(p.costPrice);
+          if (priceChanged) {
+            const appr = await Utils.requireManagerApproval('تعديل أسعار المنتج: ' + p.name);
+            if (!appr.ok) {
+              overlay.querySelector('#prod-form-error').textContent =
+                'تعديل الأسعار يتطلب موافقة المدير';
+              return;
+            }
+          }
           await updateProduct(p.id, data);
           Utils.toast('تم حفظ التعديلات', 'success');
         } else {

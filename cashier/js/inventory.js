@@ -236,6 +236,11 @@ const Inventory = (() => {
       if (!form.reportValidity()) return;
       const qty = Number(form.qty.value);
       const reason = form.reason.value.trim();
+      const appr = await Utils.requireManagerApproval('تعديل مخزون: ' + product.name);
+      if (!appr.ok) {
+        overlay.querySelector('#op-err').textContent = 'تتطلب هذه العملية موافقة المدير';
+        return;
+      }
       try {
         if (mode === 'add') await addStock(product.id, qty, reason);
         else if (mode === 'deduct') {
@@ -477,6 +482,11 @@ const Inventory = (() => {
     const changes = _countSession.filter((s) => s.counted !== s.system);
     if (!changes.length) {
       Utils.toast('لا توجد فروقات للتطبيق', 'info');
+      return;
+    }
+    const appr = await Utils.requireManagerApproval('تطبيق جرد على ' + changes.length + ' منتج');
+    if (!appr.ok) {
+      Utils.toast('تتطلب هذه العملية موافقة المدير', 'error');
       return;
     }
     const ok = await Utils.confirmBox(

@@ -20,6 +20,7 @@ const Settings = (() => {
     currency: 'ج.م', // الجنيه المصري
     blockSaleWhenOutOfStock: false, // منع البيع عند نفاد المخزون
     lowStockAlert: true,
+    largeDiscountThreshold: 100, // الخصم الذي يتطلب موافقة المدير (بالجنيه)
     returnWindowDays: 14, // مدة السماح بالمرتجع
     autoLockMinutes: 5, // قفل الشاشة التلقائي (0 = معطّل)
     printFormat: '80mm', // 58mm | 80mm | A4

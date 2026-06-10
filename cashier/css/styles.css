@@ -484,6 +484,17 @@ input, select, button, textarea {
 .loading { padding: 40px; text-align: center; color: var(--text-muted); }
 .fatal { padding: 40px; text-align: center; color: var(--danger); }
 
+/* ---------- صلاحيات الموظفين ---------- */
+.perm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
 /* ---------- المرتجعات ---------- */
 .btn-danger { background: var(--danger); color: #fff; }
 .ret-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }

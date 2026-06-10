@@ -367,6 +367,11 @@ const Returns = (() => {
         errBox.textContent = 'سبب المرتجع إجباري';
         return;
       }
+      const appr = await Utils.requireManagerApproval('تنفيذ مرتجع على الفاتورة ' + inv.number);
+      if (!appr.ok) {
+        errBox.textContent = 'تتطلب هذه العملية موافقة المدير';
+        return;
+      }
       try {
         const { retRecord, invoice } = await processReturn(inv, lines, reason, method, false);
         Utils.toast('تم المرتجع — استرداد ' + Utils.money(retRecord.total), 'success');
@@ -386,6 +391,11 @@ const Returns = (() => {
       errBox.textContent = '';
       if (!reason) {
         errBox.textContent = 'سبب الإلغاء إجباري (اكتبه في خانة السبب)';
+        return;
+      }
+      const appr = await Utils.requireManagerApproval('إلغاء الفاتورة ' + inv.number + ' بالكامل');
+      if (!appr.ok) {
+        errBox.textContent = 'تتطلب هذه العملية موافقة المدير';
         return;
       }
       const ok = await Utils.confirmBox(

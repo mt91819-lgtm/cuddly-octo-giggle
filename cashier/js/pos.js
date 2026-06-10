@@ -429,6 +429,18 @@ const POS = (() => {
 
   async function _onCheckout() {
     const btn = document.getElementById('checkout-btn');
+    // الخصومات الكبيرة تتطلب موافقة المدير
+    const t = totals();
+    const threshold = Number(_appSettings.largeDiscountThreshold) || 0;
+    if (threshold > 0 && t.totalDiscount >= threshold) {
+      const appr = await Utils.requireManagerApproval(
+        'خصم كبير بقيمة ' + Utils.money(t.totalDiscount) + ' يتطلب موافقة المدير'
+      );
+      if (!appr.ok) {
+        Utils.toast('تم إلغاء البيع: الخصم الكبير يتطلب موافقة المدير', 'error');
+        return;
+      }
+    }
     if (btn) btn.disabled = true;
     try {
       const invoice = await checkout();
