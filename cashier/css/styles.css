@@ -484,6 +484,30 @@ input, select, button, textarea {
 .loading { padding: 40px; text-align: center; color: var(--text-muted); }
 .fatal { padding: 40px; text-align: center; color: var(--danger); }
 
+/* ---------- فحص النظام ---------- */
+.hc-meta { color: var(--text-muted); margin: 6px 0 14px; font-weight: 700; }
+.hc-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-right: 4px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.hc-ok { border-right-color: var(--success); }
+.hc-warning { border-right-color: var(--warning); }
+.hc-error { border-right-color: var(--danger); }
+.hc-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hc-msg { color: var(--text-muted); margin-inline-start: auto; }
+.hc-details {
+  margin: 10px 0 0;
+  padding-inline-start: 20px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  max-height: 200px;
+  overflow: auto;
+}
+
 /* ---------- النسخ الاحتياطي ---------- */
 .backup-grid {
   display: grid;

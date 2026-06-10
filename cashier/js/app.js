@@ -196,6 +196,7 @@ const App = (() => {
     { id: 'users', label: 'الموظفون', icon: '👥', ready: true, perm: null, managerOnly: true },
     { id: 'audit', label: 'سجل العمليات', icon: '🧾', ready: true, perm: null, managerOnly: true },
     { id: 'backup', label: 'النسخ الاحتياطي', icon: '💾', ready: true, perm: null, managerOnly: true },
+    { id: 'health', label: 'فحص النظام', icon: '🩺', ready: true, perm: null, managerOnly: true },
     { id: 'settings', label: 'الإعدادات', icon: '⚙️', ready: true, perm: null, managerOnly: true },
   ];
 
@@ -382,6 +383,7 @@ const App = (() => {
     users: 'Users',
     audit: 'AuditView',
     backup: 'Backup',
+    health: 'Health',
   };
 
   /* ---------- لوحة التحكم المبدئية ---------- */
