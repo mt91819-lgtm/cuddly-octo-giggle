@@ -327,6 +327,17 @@ const Products = (() => {
   /* ---------- طباعة ملصق باركود لمنتج ---------- */
   async function _openBarcodeDialog(p) {
     const settings = await Settings.getApp();
+    // المنتجات بدون باركود: نولّد رقمًا ونحفظه قبل الطباعة
+    if (!p.barcode) {
+      const fresh = await DB.get('products', p.id);
+      fresh.barcode = await _genBarcode();
+      fresh.updatedAt = Date.now();
+      await DB.put('products', fresh);
+      p.barcode = fresh.barcode; // p هو نفس عنصر الكاش
+      const wrap = document.querySelector('#prod-table-wrap');
+      if (wrap) _renderTable(wrap);
+      Utils.toast('تم توليد باركود للمنتج', 'success');
+    }
     const overlay = Utils.el(`
       <div class="modal-overlay"><div class="modal">
         <div class="modal-header">طباعة باركود — ${Utils.escapeHtml(p.name)}</div>
