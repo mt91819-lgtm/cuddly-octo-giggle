@@ -74,7 +74,7 @@
       <h1>🔐 كود المدير المتغيّر</h1>
       <div class="sub">يتغيّر تلقائيًا كل ساعتين — يعمل بدون إنترنت</div>
 
-      <div id="setup" class="hidden">
+      <div id="setup">
         <label>الصق سر المدير (من شاشة الموظفين في النظام)</label>
         <input id="secret-in" placeholder="مثال: 3f9a1c..." autocomplete="off" />
         <button id="save">حفظ السر وعرض الكود</button>
@@ -89,6 +89,7 @@
 
       <div class="note">
         السر يُحفظ على هذا الجهاز فقط. أعطِ الموظف <strong>الكود الظاهر</strong> (وليس السر) عند الحاجة.
+        <br />💡 بعد إدخال السر، استخدم «إضافة إلى الشاشة الرئيسية» ليبقى محفوظًا دائمًا بدون إنترنت.
       </div>
     </div>
 
@@ -190,24 +191,52 @@
       var setup = document.getElementById('setup');
       var view = document.getElementById('view');
       var timer = null;
+      var mem = {};
+
+      /* تخزين آمن: localStorage قد يرمي استثناء عند فتح الملف محليًا على الموبايل،
+         لذا نلتقط الخطأ ونستخدم بديلًا في الذاكرة. */
+      function lsGet(k) {
+        try {
+          return localStorage.getItem(k);
+        } catch (e) {
+          return mem[k] || null;
+        }
+      }
+      function lsSet(k, v) {
+        try {
+          localStorage.setItem(k, v);
+        } catch (e) {
+          mem[k] = v;
+        }
+      }
+
+      /* السر يُحفظ أيضًا في رابط الصفحة (#) ليبقى حتى لو تعطّل التخزين —
+         فقط «أضِف إلى الشاشة الرئيسية» بعد الإدخال. */
+      function hashSecret() {
+        var m = (location.hash || '').match(/s=([^&]+)/);
+        return m ? decodeURIComponent(m[1]) : null;
+      }
+
+      function tick(secret) {
+        var now = Date.now();
+        document.getElementById('code').textContent = RotatingCode.current(secret, now);
+        var ms = RotatingCode.msToNext(now);
+        var mn = Math.floor(ms / 60000);
+        var s = Math.floor((ms % 60000) / 1000);
+        document.getElementById('left').textContent =
+          'يتغيّر خلال ' + mn + ':' + String(s).padStart(2, '0');
+        document.getElementById('bar').style.width =
+          (100 * (ms / RotatingCode.PERIOD_MS)).toFixed(1) + '%';
+      }
 
       function showView(secret) {
         setup.classList.add('hidden');
         view.classList.remove('hidden');
-        function tick() {
-          var now = Date.now();
-          document.getElementById('code').textContent = RotatingCode.current(secret, now);
-          var ms = RotatingCode.msToNext(now);
-          var m = Math.floor(ms / 60000);
-          var s = Math.floor((ms % 60000) / 1000);
-          document.getElementById('left').textContent =
-            'يتغيّر خلال ' + m + ':' + String(s).padStart(2, '0');
-          document.getElementById('bar').style.width =
-            (100 * (ms / RotatingCode.PERIOD_MS)).toFixed(1) + '%';
-        }
-        tick();
+        tick(secret);
         clearInterval(timer);
-        timer = setInterval(tick, 1000);
+        timer = setInterval(function () {
+          tick(secret);
+        }, 1000);
       }
 
       function showSetup() {
@@ -220,14 +249,28 @@
       document.getElementById('save').onclick = function () {
         var v = document.getElementById('secret-in').value.trim();
         if (!v) return;
-        localStorage.setItem(KEY, v);
+        lsSet(KEY, v);
+        try {
+          location.hash = 's=' + encodeURIComponent(v);
+        } catch (e) {}
         showView(v);
       };
-      document.getElementById('change').onclick = showSetup;
+      document.getElementById('change').onclick = function () {
+        try {
+          lsSet(KEY, '');
+          location.hash = '';
+        } catch (e) {}
+        showSetup();
+      };
 
-      var saved = localStorage.getItem(KEY);
-      if (saved) showView(saved);
-      else showSetup();
+      /* بدء آمن: أي خطأ لا يجب أن يترك الصفحة فارغة */
+      try {
+        var saved = hashSecret() || lsGet(KEY);
+        if (saved) showView(saved);
+        else showSetup();
+      } catch (e) {
+        showSetup();
+      }
     </script>
   </body>
 </html>
