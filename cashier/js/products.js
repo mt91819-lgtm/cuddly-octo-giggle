@@ -302,6 +302,12 @@ const Products = (() => {
         openForm(p, document.getElementById('content'));
       };
     });
+    wrap.querySelectorAll('[data-barcode]').forEach((b) => {
+      b.onclick = () => {
+        const p = _cache.find((x) => x.id === Number(b.dataset.barcode));
+        if (p) _openBarcodeDialog(p);
+      };
+    });
     wrap.querySelectorAll('[data-archive]').forEach((b) => {
       b.onclick = async () => {
         const id = Number(b.dataset.archive);
@@ -316,6 +322,45 @@ const Products = (() => {
         _renderTable(wrap);
       };
     });
+  }
+
+  /* ---------- طباعة ملصق باركود لمنتج ---------- */
+  async function _openBarcodeDialog(p) {
+    const settings = await Settings.getApp();
+    const overlay = Utils.el(`
+      <div class="modal-overlay"><div class="modal">
+        <div class="modal-header">طباعة باركود — ${Utils.escapeHtml(p.name)}</div>
+        <div class="modal-body">
+          <div class="bc-preview">${Barcode.svg(p.barcode, { height: 50 })}
+            <div class="mono" style="text-align:center;letter-spacing:2px">${Utils.escapeHtml(
+              p.barcode
+            )}</div>
+            <div style="text-align:center;font-weight:bold">${Utils.money(p.salePrice)}</div>
+          </div>
+          <label class="field">عدد الملصقات
+            <input type="number" id="bc-qty" min="1" max="500" value="1" />
+          </label>
+          <p class="form-note">المقاس الحالي ${Number(settings.labelWidthMm)}×${Number(
+      settings.labelHeightMm
+    )}مم — يمكن تغييره من الإعدادات.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" data-act="cancel">إلغاء</button>
+          <button class="btn btn-primary" data-act="print">طباعة</button>
+        </div>
+      </div></div>`);
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.querySelector('[data-act="cancel"]').onclick = close;
+    overlay.addEventListener('click', (e) => e.target === overlay && close());
+    overlay.querySelector('[data-act="print"]').onclick = () => {
+      const qty = Math.max(1, Math.min(500, Math.floor(Number(overlay.querySelector('#bc-qty').value) || 1)));
+      const labels = [];
+      for (let i = 0; i < qty; i++)
+        labels.push({ name: p.name, price: p.salePrice, barcode: p.barcode });
+      Labels.print(labels, settings);
+      close();
+    };
   }
 
   function _rowHtml(p) {
@@ -335,6 +380,7 @@ const Products = (() => {
         <td>${p.archived ? '<span class="tag tag-muted">مؤرشف</span>' : '<span class="tag tag-ok">نشط</span>'}</td>
         <td class="actions-cell">
           <button class="btn btn-sm btn-ghost" data-edit="${p.id}">تعديل</button>
+          <button class="btn btn-sm btn-ghost" data-barcode="${p.id}">باركود</button>
           <button class="btn btn-sm btn-ghost" data-archive="${p.id}">${
       p.archived ? 'استرجاع' : 'أرشفة'
     }</button>

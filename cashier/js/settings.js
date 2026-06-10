@@ -26,6 +26,12 @@ const Settings = (() => {
     autoBackupOnClose: true, // تنزيل نسخة احتياطية تلقائيًا عند إغلاق الوردية
     printFormat: '80mm', // 58mm | 80mm | A4
     receiptFooter: 'شكرًا لزيارتكم',
+    // ملصقات الباركود (طابعة الباركود)
+    labelWidthMm: 50, // عرض الملصق
+    labelHeightMm: 30, // ارتفاع الملصق
+    labelShowName: true, // إظهار اسم المنتج
+    labelShowPrice: true, // إظهار السعر
+    labelShowStore: false, // إظهار اسم المتجر
   };
 
   /* ---------- إعدادات الواجهة (localStorage) ---------- */

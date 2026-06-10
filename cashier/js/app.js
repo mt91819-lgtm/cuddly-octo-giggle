@@ -453,6 +453,30 @@ const App = (() => {
           </select>
         </label>
 
+        <h3 class="form-section-title">ملصقات الباركود (طابعة الباركود)</h3>
+        <label>عرض الملصق (مم)
+          <input type="number" name="labelWidthMm" min="20" max="100" value="${Number(
+            app.labelWidthMm
+          )}" />
+        </label>
+        <label>ارتفاع الملصق (مم)
+          <input type="number" name="labelHeightMm" min="15" max="100" value="${Number(
+            app.labelHeightMm
+          )}" />
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" name="labelShowName" ${app.labelShowName ? 'checked' : ''} />
+          إظهار اسم المنتج على الملصق
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" name="labelShowPrice" ${app.labelShowPrice ? 'checked' : ''} />
+          إظهار السعر على الملصق
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" name="labelShowStore" ${app.labelShowStore ? 'checked' : ''} />
+          إظهار اسم المتجر على الملصق
+        </label>
+
         <h3 class="form-section-title">إعدادات البيع والمخزون</h3>
         <label class="switch-row">
           <input type="checkbox" name="blockSaleWhenOutOfStock" ${app.blockSaleWhenOutOfStock ? 'checked' : ''} />
@@ -502,6 +526,11 @@ const App = (() => {
         currency: f.currency.value.trim(),
         receiptFooter: f.receiptFooter.value.trim(),
         printFormat: f.printFormat.value,
+        labelWidthMm: Number(f.labelWidthMm.value) || 50,
+        labelHeightMm: Number(f.labelHeightMm.value) || 30,
+        labelShowName: f.labelShowName.checked,
+        labelShowPrice: f.labelShowPrice.checked,
+        labelShowStore: f.labelShowStore.checked,
         blockSaleWhenOutOfStock: f.blockSaleWhenOutOfStock.checked,
         lowStockAlert: f.lowStockAlert.checked,
         autoBackupOnClose: f.autoBackupOnClose.checked,
