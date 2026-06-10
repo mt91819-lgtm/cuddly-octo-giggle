@@ -194,7 +194,7 @@ const App = (() => {
     { id: 'expenses', label: 'المصروفات', icon: '💸', ready: true, perm: 'expenses' },
     { id: 'reports', label: 'التقارير', icon: '📈', ready: true, perm: 'reports' },
     { id: 'users', label: 'الموظفون', icon: '👥', ready: true, perm: null, managerOnly: true },
-    { id: 'audit', label: 'سجل العمليات', icon: '🧾', ready: false, perm: null, managerOnly: true },
+    { id: 'audit', label: 'سجل العمليات', icon: '🧾', ready: true, perm: null, managerOnly: true },
     { id: 'settings', label: 'الإعدادات', icon: '⚙️', ready: true, perm: null, managerOnly: true },
   ];
 

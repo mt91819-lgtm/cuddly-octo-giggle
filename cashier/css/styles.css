@@ -484,6 +484,23 @@ input, select, button, textarea {
 .loading { padding: 40px; text-align: center; color: var(--text-muted); }
 .fatal { padding: 40px; text-align: center; color: var(--danger); }
 
+/* ---------- سجل العمليات ---------- */
+.aud-detail h4 { margin: 14px 0 6px; }
+.json-view {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  overflow: auto;
+  max-height: 240px;
+  direction: ltr;
+  text-align: left;
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ---------- التقارير ---------- */
 .card-red { border-top: 3px solid var(--danger); }
 .rep-period { color: var(--text-muted); margin: 6px 0 14px; font-weight: 700; }
