@@ -129,10 +129,7 @@ const POS = (() => {
       if (!ok) return null;
     }
 
-    const number = await genInvoiceNumber();
-    const user = Auth.currentUser();
-    const shiftId =
-      window.Shifts && Shifts.getOpenShiftId ? await Shifts.getOpenShiftId() : null;
+    const paid = _payment === 'cash' && _paid ? _paid : t.total;
 
     const items = _cart.map((c) => ({
       productId: c.productId,
@@ -147,11 +144,7 @@ const POS = (() => {
       returnedQty: 0,
     }));
 
-    const paid = _payment === 'cash' && _paid ? _paid : t.total;
-    const change = Math.max(0, paid - t.total);
-
-    const invoice = {
-      number,
+    return persistSale({
       items,
       subtotal: t.subtotal,
       lineDiscounts: t.lineDiscounts,
@@ -162,21 +155,41 @@ const POS = (() => {
       profit: t.profit,
       paymentMethod: _payment,
       paidAmount: paid,
-      change,
+      change: Math.max(0, paid - t.total),
       note: _note,
-      status: 'Completed',
-      userId: user ? user.id : null,
-      userName: user ? user.name : '',
-      shiftId,
-      createdAt: Date.now(),
-    };
+    });
+  }
+
+  /* حفظ فاتورة بيع من بيانات جاهزة (يُستخدم من الكاشير ومن الاستبدال).
+   * يولّد الرقم، يخصم المخزون، يسجّل الحركة النقدية للكاش، ويكتب في Audit. */
+  async function persistSale(sale) {
+    const user = Auth.currentUser();
+    const shiftId =
+      window.Shifts && Shifts.getOpenShiftId ? await Shifts.getOpenShiftId() : null;
+
+    const invoice = Object.assign(
+      {
+        status: 'Completed',
+        note: '',
+        invoiceDiscount: 0,
+        lineDiscounts: 0,
+        totalDiscount: 0,
+      },
+      sale,
+      {
+        number: await genInvoiceNumber(),
+        userId: user ? user.id : null,
+        userName: user ? user.name : '',
+        shiftId,
+        createdAt: Date.now(),
+      }
+    );
 
     let id;
     try {
       id = await DB.add('invoices', invoice);
     } catch (e) {
       if (e && e.name === 'ConstraintError') {
-        // تعارض نادر في رقم الفاتورة — إعادة التوليد مرة واحدة
         invoice.number = await genInvoiceNumber();
         id = await DB.add('invoices', invoice);
       } else {
@@ -185,8 +198,7 @@ const POS = (() => {
     }
     invoice.id = id;
 
-    // خصم المخزون وتسجيل الحركات
-    for (const it of items) {
+    for (const it of invoice.items) {
       await Inventory.applyMovement({
         productId: it.productId,
         delta: -it.qty,
@@ -197,12 +209,11 @@ const POS = (() => {
       });
     }
 
-    // حركة نقدية للكاش (تُستخدم في تقارير الورديات بالمرحلة 8)
-    if (_payment === 'cash') {
+    if (invoice.paymentMethod === 'cash') {
       await DB.add('cash_movements', {
         shiftId,
         type: 'sale',
-        amount: t.total,
+        amount: invoice.total,
         refType: 'invoice',
         refId: id,
         note: 'بيع ' + invoice.number,
@@ -480,6 +491,7 @@ const POS = (() => {
     render,
     addToCart,
     checkout,
+    persistSale,
     clearCart,
     totals,
     genInvoiceNumber,

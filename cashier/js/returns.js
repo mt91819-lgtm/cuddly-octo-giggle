@@ -16,6 +16,12 @@ const Returns = (() => {
   let _loaded = null; // الفاتورة المحمّلة حاليًا للمرتجع
   let _perUnit = []; // صافي سعر الوحدة بعد توزيع الخصم لكل سطر
 
+  // حالة الاستبدال
+  let _exInvoice = null;
+  let _exPerUnit = [];
+  let _exNewCart = []; // الأصناف البديلة [{productId,name,sku,unitPrice,unitCost,qty,stock}]
+  let _exProducts = [];
+
   /* ---------- حساب صافي سعر الوحدة بعد توزيع خصم الفاتورة ---------- */
   function _computePerUnit(invoice) {
     const items = invoice.items || [];
@@ -200,6 +206,7 @@ const Returns = (() => {
     content.innerHTML = `
       <div class="tabs">
         <button class="tab ${_tab === 'create' ? 'active' : ''}" data-tab="create">إنشاء مرتجع</button>
+        <button class="tab ${_tab === 'exchange' ? 'active' : ''}" data-tab="exchange">استبدال</button>
         <button class="tab ${_tab === 'log' ? 'active' : ''}" data-tab="log">سجل المرتجعات</button>
       </div>
       <div id="ret-body"></div>`;
@@ -211,6 +218,7 @@ const Returns = (() => {
     });
     const body = content.querySelector('#ret-body');
     if (_tab === 'create') _renderCreate(body);
+    else if (_tab === 'exchange') _renderExchange(body);
     else _renderLog(body);
   }
 
@@ -450,6 +458,327 @@ const Returns = (() => {
         settings,
         { isReturn: true, originalNumber: retRecord.invoiceNumber }
       );
+    });
+  }
+
+  /* ---------- تبويب الاستبدال ---------- */
+  async function _renderExchange(body) {
+    _exProducts = (await DB.getAll('products')).filter((p) => !p.archived);
+    body.innerHTML = `
+      <div class="toolbar">
+        <input type="search" id="ex-num" class="search-input"
+          placeholder="رقم الفاتورة الأصلية (L-YYYYMMDD-0001) ثم Enter…" autocomplete="off" />
+        <button class="btn btn-primary" id="ex-find">بحث</button>
+      </div>
+      <div id="ex-detail"></div>`;
+    const numInput = body.querySelector('#ex-num');
+    const find = async () => {
+      const num = numInput.value.trim();
+      if (!num) return;
+      try {
+        _exInvoice = await loadInvoice(num);
+        _exPerUnit = _computePerUnit(_exInvoice);
+        _exNewCart = [];
+        _drawExchange(body);
+      } catch (err) {
+        body.querySelector('#ex-detail').innerHTML =
+          '<div class="placeholder"><p>' + Utils.escapeHtml(err.message) + '</p></div>';
+      }
+    };
+    body.querySelector('#ex-find').onclick = find;
+    numInput.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        find();
+      }
+    };
+    if (_exInvoice) _drawExchange(body);
+    setTimeout(() => numInput.focus(), 50);
+  }
+
+  function _exAddNew(term) {
+    term = String(term || '').trim();
+    if (!term) return;
+    const lc = term.toLowerCase();
+    const p =
+      _exProducts.find((x) => x.barcode === term) ||
+      _exProducts.find((x) => x.sku === term) ||
+      _exProducts.find((x) => x.name.toLowerCase().includes(lc));
+    if (!p) {
+      Utils.toast('لا يوجد منتج مطابق', 'error');
+      return;
+    }
+    const ex = _exNewCart.find((c) => c.productId === p.id);
+    if (ex) ex.qty += 1;
+    else
+      _exNewCart.push({
+        productId: p.id,
+        name: p.name,
+        sku: p.sku,
+        unitPrice: Number(p.salePrice) || 0,
+        unitCost: Number(p.costPrice) || 0,
+        qty: 1,
+      });
+  }
+
+  function _drawExchange(body) {
+    const inv = _exInvoice;
+    const detail = body.querySelector('#ex-detail');
+    const canReturn = inv.status !== 'Cancelled' && inv.status !== 'Full Return';
+    if (!canReturn) {
+      detail.innerHTML = `<div class="card">${_statusBadge(
+        inv.status
+      )} لا يمكن الاستبدال على هذه الفاتورة (مرتجعة بالكامل أو ملغاة).</div>`;
+      return;
+    }
+
+    detail.innerHTML = `
+      <div class="card" style="margin-bottom:14px">
+        <strong>فاتورة ${Utils.escapeHtml(inv.number)}</strong> ${_statusBadge(inv.status)}
+        <span class="form-note"> · ${Utils.fmtDateTime(inv.createdAt)}</span>
+      </div>
+
+      <h3 class="form-section-title">1) الأصناف المُرتجعة (من الفاتورة)</h3>
+      <div class="table-scroll"><table class="data-table">
+        <thead><tr><th>الصنف</th><th>متاح</th><th>سعر الوحدة (صافي)</th><th>كمية الإرجاع</th></tr></thead>
+        <tbody>${inv.items
+          .map((it, i) => {
+            const avail = _availableQty(it);
+            return `<tr>
+              <td>${Utils.escapeHtml(it.name)}</td>
+              <td>${avail}</td>
+              <td>${Utils.money(_exPerUnit[i])}</td>
+              <td><input type="number" min="0" max="${avail}" value="0" step="1"
+                   data-exret="${i}" ${avail <= 0 ? 'disabled' : ''} style="width:80px" /></td>
+            </tr>`;
+          })
+          .join('')}</tbody>
+      </table></div>
+
+      <h3 class="form-section-title">2) الأصناف البديلة (الجديدة)</h3>
+      <div class="toolbar">
+        <input type="search" id="ex-add" class="search-input"
+          placeholder="امسح الباركود أو اكتب اسم/SKU الصنف البديل ثم Enter…" autocomplete="off" />
+      </div>
+      <div id="ex-newcart"></div>
+
+      <div class="ret-form">
+        <div class="sum-row"><span>قيمة المُرتجع</span><span id="ex-rv">${Utils.money(0)}</span></div>
+        <div class="sum-row"><span>قيمة البديل</span><span id="ex-nv">${Utils.money(0)}</span></div>
+        <div class="sum-row sum-total"><span id="ex-diff-label">الفرق</span><span id="ex-diff">${Utils.money(
+          0
+        )}</span></div>
+        <label class="field">سبب الاستبدال *
+          <input type="text" id="ex-reason" placeholder="مقاس/لون غير مناسب…" />
+        </label>
+        <label class="field">طريقة تسوية الفرق
+          <select id="ex-method">
+            <option value="cash">كاش</option>
+            <option value="instapay">Instapay</option>
+            <option value="wallet">Wallet</option>
+          </select>
+        </label>
+        <div class="form-error" id="ex-err"></div>
+        <button class="btn btn-primary" id="ex-apply">تنفيذ الاستبدال</button>
+      </div>`;
+
+    const addInput = detail.querySelector('#ex-add');
+    addInput.onkeydown = (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      _exAddNew(addInput.value);
+      addInput.value = '';
+      _drawNewCart(detail);
+      _recomputeExchange(detail);
+    };
+
+    detail.querySelectorAll('[data-exret]').forEach((inp) => {
+      inp.oninput = () => _recomputeExchange(detail);
+    });
+
+    _drawNewCart(detail);
+    _recomputeExchange(detail);
+
+    detail.querySelector('#ex-apply').onclick = () => _applyExchange(body, detail);
+    setTimeout(() => addInput.focus(), 50);
+  }
+
+  function _drawNewCart(detail) {
+    const wrap = detail.querySelector('#ex-newcart');
+    if (!_exNewCart.length) {
+      wrap.innerHTML = '<p class="form-note">لم تُضِف أصنافًا بديلة بعد.</p>';
+      return;
+    }
+    wrap.innerHTML = `
+      <div class="table-scroll"><table class="data-table">
+        <thead><tr><th>الصنف</th><th>السعر</th><th>الكمية</th><th>الإجمالي</th><th></th></tr></thead>
+        <tbody>${_exNewCart
+          .map(
+            (c, i) => `<tr>
+            <td>${Utils.escapeHtml(c.name)}</td>
+            <td>${Utils.money(c.unitPrice)}</td>
+            <td><input type="number" min="1" step="1" value="${c.qty}" data-exqty="${i}" style="width:70px" /></td>
+            <td>${Utils.money(c.unitPrice * c.qty)}</td>
+            <td><button class="cl-remove" data-exdel="${i}">✕</button></td>
+          </tr>`
+          )
+          .join('')}</tbody>
+      </table></div>`;
+    wrap.querySelectorAll('[data-exqty]').forEach((inp) => {
+      inp.onchange = () => {
+        _exNewCart[+inp.dataset.exqty].qty = Math.max(1, Math.floor(Number(inp.value) || 1));
+        _drawNewCart(detail);
+        _recomputeExchange(detail);
+      };
+    });
+    wrap.querySelectorAll('[data-exdel]').forEach((b) => {
+      b.onclick = () => {
+        _exNewCart.splice(+b.dataset.exdel, 1);
+        _drawNewCart(detail);
+        _recomputeExchange(detail);
+      };
+    });
+  }
+
+  function _exReturnLines(detail) {
+    return Array.from(detail.querySelectorAll('[data-exret]'))
+      .map((inp) => ({ index: +inp.dataset.exret, qty: Number(inp.value) || 0 }))
+      .filter((l) => l.qty > 0);
+  }
+
+  function _recomputeExchange(detail) {
+    const lines = _exReturnLines(detail);
+    let rv = 0;
+    lines.forEach((l) => (rv += _exPerUnit[l.index] * l.qty));
+    rv = Math.round(rv * 100) / 100;
+    let nv = 0;
+    _exNewCart.forEach((c) => (nv += c.unitPrice * c.qty));
+    nv = Math.round(nv * 100) / 100;
+    const diff = Math.round((nv - rv) * 100) / 100;
+    detail.querySelector('#ex-rv').textContent = Utils.money(rv);
+    detail.querySelector('#ex-nv').textContent = Utils.money(nv);
+    const label = detail.querySelector('#ex-diff-label');
+    const diffEl = detail.querySelector('#ex-diff');
+    diffEl.textContent = Utils.money(Math.abs(diff));
+    if (diff > 0) label.textContent = 'يدفع العميل';
+    else if (diff < 0) label.textContent = 'يُسترد للعميل';
+    else label.textContent = 'الفرق (متعادل)';
+    return { rv, nv, diff, lines };
+  }
+
+  async function _applyExchange(body, detail) {
+    const errBox = detail.querySelector('#ex-err');
+    errBox.textContent = '';
+    const reason = detail.querySelector('#ex-reason').value.trim();
+    const method = detail.querySelector('#ex-method').value;
+    const { rv, nv, diff, lines } = _recomputeExchange(detail);
+
+    if (!lines.length) {
+      errBox.textContent = 'حدد صنفًا واحدًا على الأقل للإرجاع';
+      return;
+    }
+    if (!_exNewCart.length) {
+      errBox.textContent = 'أضف صنفًا بديلًا واحدًا على الأقل';
+      return;
+    }
+    if (!reason) {
+      errBox.textContent = 'سبب الاستبدال إجباري';
+      return;
+    }
+    // منع بيع صنف بديل غير متوفر عند تفعيل المنع
+    const settings = await Settings.getApp();
+    if (settings.blockSaleWhenOutOfStock) {
+      for (const c of _exNewCart) {
+        const p = _exProducts.find((x) => x.id === c.productId);
+        if (p && c.qty > Number(p.stock)) {
+          errBox.textContent = 'المخزون غير كافٍ للصنف البديل: ' + c.name;
+          return;
+        }
+      }
+    }
+
+    const appr = await Utils.requireManagerApproval('تنفيذ استبدال على الفاتورة ' + _exInvoice.number);
+    if (!appr.ok) {
+      errBox.textContent = 'تتطلب هذه العملية موافقة المدير';
+      return;
+    }
+
+    try {
+      // 1) مرتجع الأصناف القديمة
+      const { retRecord, invoice } = await processReturn(
+        _exInvoice,
+        lines,
+        'استبدال: ' + reason,
+        method,
+        false
+      );
+
+      // 2) بيع الأصناف البديلة كفاتورة جديدة
+      const items = _exNewCart.map((c) => ({
+        productId: c.productId,
+        name: c.name,
+        sku: c.sku,
+        qty: c.qty,
+        unitPrice: c.unitPrice,
+        unitCost: c.unitCost,
+        lineDiscount: 0,
+        lineTotal: Math.round(c.unitPrice * c.qty * 100) / 100,
+        returnedQty: 0,
+      }));
+      const totalCost = items.reduce((s, it) => s + it.unitCost * it.qty, 0);
+      const saleInvoice = await POS.persistSale({
+        items,
+        subtotal: nv,
+        totalDiscount: 0,
+        total: nv,
+        totalCost: Math.round(totalCost * 100) / 100,
+        profit: Math.round((nv - totalCost) * 100) / 100,
+        paymentMethod: method,
+        paidAmount: nv,
+        change: 0,
+        note: 'استبدال مقابل فاتورة ' + _exInvoice.number,
+      });
+
+      await Audit.log('exchange.create', 'invoice', invoice.id, null, {
+        original: _exInvoice.number,
+        returnId: retRecord.id,
+        newInvoice: saleInvoice.number,
+        returnValue: rv,
+        newValue: nv,
+        difference: diff,
+      });
+
+      Utils.toast('تم الاستبدال بنجاح', 'success');
+      _offerExchangePrint({ retRecord, saleInvoice, rv, nv, diff, settings });
+
+      // إعادة الضبط
+      _exInvoice = null;
+      _exNewCart = [];
+      _renderExchange(body);
+    } catch (err) {
+      errBox.textContent = err.message;
+    }
+  }
+
+  function _offerExchangePrint({ retRecord, saleInvoice, rv, nv, diff, settings }) {
+    const diffText =
+      diff > 0
+        ? 'المطلوب تحصيله من العميل: ' + Utils.money(diff)
+        : diff < 0
+        ? 'المُسترد للعميل: ' + Utils.money(-diff)
+        : 'متعادل (لا فرق)';
+    Utils.modal({
+      title: 'تم الاستبدال',
+      bodyHtml: `
+        <p>قيمة المُرتجع: ${Utils.money(rv)}</p>
+        <p>قيمة البديل: ${Utils.money(nv)}</p>
+        <p><strong>${diffText}</strong></p>
+        <p>فاتورة البديل الجديدة: <span class="mono">${Utils.escapeHtml(saleInvoice.number)}</span></p>
+        <p>طباعة فاتورة البديل؟</p>`,
+      confirmText: 'طباعة الفاتورة الجديدة',
+      cancelText: 'إغلاق',
+    }).then((v) => {
+      if (v !== null) Receipt.print(saleInvoice, settings);
     });
   }
 
