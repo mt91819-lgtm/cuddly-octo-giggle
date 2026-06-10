@@ -255,6 +255,13 @@
         } catch (e) {}
         showView(v);
       };
+      // الضغط على Enter/Go في لوحة المفاتيح يعمل مثل زر الحفظ
+      document.getElementById('secret-in').onkeydown = function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          document.getElementById('save').onclick();
+        }
+      };
       document.getElementById('change').onclick = function () {
         try {
           lsSet(KEY, '');
