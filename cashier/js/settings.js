@@ -23,6 +23,7 @@ const Settings = (() => {
     largeDiscountThreshold: 100, // الخصم الذي يتطلب موافقة المدير (بالجنيه)
     returnWindowDays: 14, // مدة السماح بالمرتجع
     autoLockMinutes: 5, // قفل الشاشة التلقائي (0 = معطّل)
+    autoBackupOnClose: true, // تنزيل نسخة احتياطية تلقائيًا عند إغلاق الوردية
     printFormat: '80mm', // 58mm | 80mm | A4
     receiptFooter: 'شكرًا لزيارتكم',
   };

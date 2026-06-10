@@ -230,6 +230,37 @@ const DB = (() => {
     return _tx(storeName, 'readwrite', (store) => _wrap(store.clear()));
   }
 
+  /* كتابة مجموعة سجلات في معاملة واحدة (للاستيراد) */
+  function bulkPut(storeName, records) {
+    return open().then(
+      (db) =>
+        new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, 'readwrite');
+          const store = tx.objectStore(storeName);
+          (records || []).forEach((r) => store.put(r));
+          tx.oncomplete = () => resolve((records || []).length);
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error);
+        })
+    );
+  }
+
+  /* استبدال محتوى جدول بالكامل (مسح ثم كتابة) في معاملة واحدة */
+  function replaceStore(storeName, records) {
+    return open().then(
+      (db) =>
+        new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, 'readwrite');
+          const store = tx.objectStore(storeName);
+          store.clear();
+          (records || []).forEach((r) => store.put(r));
+          tx.oncomplete = () => resolve((records || []).length);
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error);
+        })
+    );
+  }
+
   /* جلب السجلات عبر فهرس بقيمة محددة */
   function getByIndex(storeName, indexName, value) {
     return _tx(storeName, 'readonly', (store) => {
@@ -309,6 +340,8 @@ const DB = (() => {
     getAll,
     count,
     clear,
+    bulkPut,
+    replaceStore,
     getByIndex,
     getOneByIndex,
     iterate,

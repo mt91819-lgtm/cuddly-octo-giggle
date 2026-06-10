@@ -195,6 +195,7 @@ const App = (() => {
     { id: 'reports', label: 'التقارير', icon: '📈', ready: true, perm: 'reports' },
     { id: 'users', label: 'الموظفون', icon: '👥', ready: true, perm: null, managerOnly: true },
     { id: 'audit', label: 'سجل العمليات', icon: '🧾', ready: true, perm: null, managerOnly: true },
+    { id: 'backup', label: 'النسخ الاحتياطي', icon: '💾', ready: true, perm: null, managerOnly: true },
     { id: 'settings', label: 'الإعدادات', icon: '⚙️', ready: true, perm: null, managerOnly: true },
   ];
 
@@ -380,6 +381,7 @@ const App = (() => {
     reports: 'Reports',
     users: 'Users',
     audit: 'AuditView',
+    backup: 'Backup',
   };
 
   /* ---------- لوحة التحكم المبدئية ---------- */
@@ -458,6 +460,10 @@ const App = (() => {
           <input type="checkbox" name="lowStockAlert" ${app.lowStockAlert ? 'checked' : ''} />
           تفعيل تنبيهات انخفاض المخزون
         </label>
+        <label class="switch-row">
+          <input type="checkbox" name="autoBackupOnClose" ${app.autoBackupOnClose ? 'checked' : ''} />
+          نسخة احتياطية تلقائية عند إغلاق الوردية
+        </label>
         <label>مدة السماح بالمرتجع (أيام)
           <input type="number" name="returnWindowDays" min="0" value="${Number(app.returnWindowDays)}" />
         </label>
@@ -496,6 +502,7 @@ const App = (() => {
         printFormat: f.printFormat.value,
         blockSaleWhenOutOfStock: f.blockSaleWhenOutOfStock.checked,
         lowStockAlert: f.lowStockAlert.checked,
+        autoBackupOnClose: f.autoBackupOnClose.checked,
         returnWindowDays: Number(f.returnWindowDays.value) || 0,
         largeDiscountThreshold: Number(f.largeDiscountThreshold.value) || 0,
         autoLockMinutes: Number(f.autoLockMinutes.value) || 0,

@@ -484,6 +484,23 @@ input, select, button, textarea {
 .loading { padding: 40px; text-align: center; color: var(--text-muted); }
 .fatal { padding: 40px; text-align: center; color: var(--danger); }
 
+/* ---------- النسخ الاحتياطي ---------- */
+.backup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.backup-grid .card h3 { margin-top: 0; }
+.danger-note { color: var(--danger); }
+.backup-grid input[type='file'] {
+  width: 100%;
+  padding: 8px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 /* ---------- سجل العمليات ---------- */
 .aud-detail h4 { margin: 14px 0 6px; }
 .json-view {
