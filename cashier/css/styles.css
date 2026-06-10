@@ -484,6 +484,12 @@ input, select, button, textarea {
 .loading { padding: 40px; text-align: center; color: var(--text-muted); }
 .fatal { padding: 40px; text-align: center; color: var(--danger); }
 
+/* ---------- تنبيهات ---------- */
+.alert { padding: 10px 14px; border-radius: 10px; margin: 10px 0; font-weight: 700; }
+.alert-ok { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+.alert-warn { background: rgba(245, 158, 11, 0.18); color: var(--warning); }
+.alert-danger { background: rgba(220, 38, 38, 0.15); color: var(--danger); }
+
 /* ---------- صلاحيات الموظفين ---------- */
 .perm-grid {
   display: grid;
