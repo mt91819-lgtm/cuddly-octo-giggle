@@ -484,6 +484,20 @@ input, select, button, textarea {
 .loading { padding: 40px; text-align: center; color: var(--text-muted); }
 .fatal { padding: 40px; text-align: center; color: var(--danger); }
 
+/* ---------- التقارير ---------- */
+.card-red { border-top: 3px solid var(--danger); }
+.rep-period { color: var(--text-muted); margin: 6px 0 14px; font-weight: 700; }
+.quick-range { display: flex; gap: 4px; flex-wrap: wrap; }
+.formula {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  line-height: 1.9;
+  color: var(--text-muted);
+}
+.formula strong { color: var(--text); font-size: 1.15rem; }
+
 /* ---------- تنبيهات ---------- */
 .alert { padding: 10px 14px; border-radius: 10px; margin: 10px 0; font-weight: 700; }
 .alert-ok { background: rgba(34, 197, 94, 0.15); color: var(--success); }
