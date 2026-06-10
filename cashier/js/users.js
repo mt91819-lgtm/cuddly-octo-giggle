@@ -30,6 +30,7 @@ const Users = (() => {
 
     const pwd = await Auth.hashPassword(data.password);
     const pin = data.pin ? await Auth.hashPassword(String(data.pin)) : null;
+    const isManager = data.role === 'manager';
 
     const user = {
       name,
@@ -38,8 +39,10 @@ const Users = (() => {
       passwordHash: pwd.hash,
       pinSalt: pin ? pin.salt : null,
       pinHash: pin ? pin.hash : null,
-      role: data.role === 'manager' ? 'manager' : 'cashier',
-      permissions: data.role === 'manager' ? ['*'] : data.permissions || [],
+      // سر الكود المتغيّر للمدير (يُولّد تلقائيًا إن لم يُمرَّر)
+      pinSecret: isManager ? data.pinSecret || RotatingCode.genSecret() : null,
+      role: isManager ? 'manager' : 'cashier',
+      permissions: isManager ? ['*'] : data.permissions || [],
       active: 1,
       createdAt: Date.now(),
     };
@@ -58,6 +61,13 @@ const Users = (() => {
     next.name = String(data.name || '').trim() || old.name;
     next.role = data.role === 'manager' ? 'manager' : 'cashier';
     next.permissions = next.role === 'manager' ? ['*'] : data.permissions || [];
+    // إدارة سر الكود المتغيّر: للمدير فقط، يُولّد إن لم يوجد، ويُحدّث عند إعادة التوليد
+    if (next.role === 'manager') {
+      if (data.pinSecret) next.pinSecret = data.pinSecret;
+      else if (!next.pinSecret) next.pinSecret = RotatingCode.genSecret();
+    } else {
+      next.pinSecret = null;
+    }
 
     // منع إنزال آخر مدير نشط إلى موظف
     if (old.role === 'manager' && next.role !== 'manager') {
@@ -222,6 +232,7 @@ const Users = (() => {
             <div class="form-section-title" style="margin:0 0 8px">صلاحيات الأقسام</div>
             <div class="perm-grid">${permChecks}</div>
           </div>
+          <div class="span-2" id="code-box"></div>
           <div class="form-error span-2" id="usr-err"></div>
         </form>
         <div class="modal-footer">
@@ -233,13 +244,84 @@ const Users = (() => {
     const form = overlay.querySelector('#usr-form');
     const roleSel = overlay.querySelector('#usr-role');
     const permBox = overlay.querySelector('#perm-box');
+    const codeBox = overlay.querySelector('#code-box');
+
+    // حالة سر الكود المتغيّر داخل النموذج
+    let pinSecret = (user && user.pinSecret) || null;
+    let codeTimer = null;
+
+    const drawCodeBox = () => {
+      if (roleSel.value !== 'manager') {
+        codeBox.innerHTML = '';
+        return;
+      }
+      if (!pinSecret) {
+        codeBox.innerHTML = `
+          <div class="form-section-title" style="margin:0 0 8px">الكود المتغيّر للمدير</div>
+          <p class="form-note">يُولَّد سر للمدير، ومنه يُحسب كود يتغيّر كل ساعتين تلقائيًا. الموظف يطلب الكود الحالي منك عند العمليات الحساسة.</p>
+          <button type="button" class="btn btn-ghost" id="gen-secret">توليد سر الكود المتغيّر</button>`;
+        codeBox.querySelector('#gen-secret').onclick = () => {
+          pinSecret = RotatingCode.genSecret();
+          drawCodeBox();
+        };
+        return;
+      }
+      codeBox.innerHTML = `
+        <div class="form-section-title" style="margin:0 0 8px">الكود المتغيّر للمدير 🔐</div>
+        <div class="code-live">
+          <div>
+            <div class="code-now" id="code-now">------</div>
+            <div class="form-note" id="code-left"></div>
+          </div>
+          <div class="code-secret">
+            <div class="form-note">السر (انسخه إلى المولّد على موبايلك مرة واحدة):</div>
+            <code class="secret-val" id="secret-val">${Utils.escapeHtml(pinSecret)}</code>
+            <div class="code-actions">
+              <button type="button" class="btn btn-sm btn-ghost" id="copy-secret">نسخ السر</button>
+              <button type="button" class="btn btn-sm btn-ghost" id="regen-secret">إعادة توليد</button>
+            </div>
+          </div>
+        </div>
+        <p class="form-note">افتح ملف <strong>manager-code.html</strong> على موبايلك، الصق السر مرة واحدة، وستظهر لك الأكواد المتغيّرة دائمًا — حتى بدون إنترنت.</p>`;
+
+      const tick = () => {
+        const now = Date.now();
+        const codeNow = overlay.querySelector('#code-now');
+        const codeLeft = overlay.querySelector('#code-left');
+        if (!codeNow) return;
+        codeNow.textContent = RotatingCode.current(pinSecret, now);
+        const ms = RotatingCode.msToNext(now);
+        const m = Math.floor(ms / 60000);
+        const sec = Math.floor((ms % 60000) / 1000);
+        codeLeft.textContent = 'يتغيّر خلال ' + m + ':' + String(sec).padStart(2, '0');
+      };
+      tick();
+      clearInterval(codeTimer);
+      codeTimer = setInterval(tick, 1000);
+
+      overlay.querySelector('#copy-secret').onclick = () => {
+        navigator.clipboard && navigator.clipboard.writeText(pinSecret);
+        Utils.toast('تم نسخ السر', 'success');
+      };
+      overlay.querySelector('#regen-secret').onclick = async () => {
+        if (await Utils.confirmBox('إعادة توليد السر ستُبطل الكود على المولّد القديم. متابعة؟')) {
+          pinSecret = RotatingCode.genSecret();
+          drawCodeBox();
+        }
+      };
+    };
+
     const syncPerm = () => {
       permBox.style.display = roleSel.value === 'manager' ? 'none' : 'block';
+      drawCodeBox();
     };
     roleSel.onchange = syncPerm;
     syncPerm();
 
-    const close = () => overlay.remove();
+    const close = () => {
+      clearInterval(codeTimer);
+      overlay.remove();
+    };
     overlay.querySelector('[data-act="cancel"]').onclick = close;
     overlay.addEventListener('click', (e) => e.target === overlay && close());
     overlay.querySelector('[data-act="save"]').onclick = async () => {
@@ -254,6 +336,7 @@ const Users = (() => {
         pin: form.pin.value,
         role: form.role.value,
         permissions,
+        pinSecret,
       };
       try {
         if (isEdit) await updateUser(user.id, data);

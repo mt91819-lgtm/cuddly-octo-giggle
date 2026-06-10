@@ -128,7 +128,7 @@ const Utils = (() => {
           <div class="modal-header">🔐 موافقة المدير مطلوبة</div>
           <form class="modal-body" id="appr-form">
             <p>${escapeHtml(actionLabel || 'هذه عملية حساسة وتتطلب موافقة المدير.')}</p>
-            <label class="field">كلمة مرور المدير أو PIN
+            <label class="field">كلمة مرور المدير أو الكود المتغيّر
               <input type="password" name="secret" autocomplete="off" required />
             </label>
             <div class="form-error" id="appr-err"></div>

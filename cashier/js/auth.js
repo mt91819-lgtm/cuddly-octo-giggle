@@ -157,7 +157,8 @@ const Auth = (() => {
       role: 'manager', // manager = صلاحية كاملة
       permissions: ['*'],
       pinSalt: salt,
-      pinHash: hash, // PIN الافتراضي = 1234 أيضًا
+      pinHash: hash, // PIN الثابت الافتراضي = 1234 (احتياطي)
+      pinSecret: window.RotatingCode ? RotatingCode.genSecret() : null, // سر الكود المتغيّر
       active: 1,
       createdAt: Date.now(),
     };
@@ -226,8 +227,9 @@ const Auth = (() => {
     return perms.includes('*') || perms.includes(section);
   }
 
-  /* ---------- التحقق من المدير لعملية حساسة ---------- */
-  /* يستقبل كلمة مرور أو PIN لأي حساب مدير ويتحقق منها. */
+  /* ---------- التحقق من المدير لعملية حساسة ----------
+   * يقبل لأي مدير نشط: كلمة المرور، أو الـ PIN الثابت (احتياطي)،
+   * أو الكود المتغيّر بالوقت (المتولّد من سر المدير). */
   async function verifyManager(secret) {
     const users = await DB.getAll('users');
     for (const u of users) {
@@ -235,8 +237,10 @@ const Auth = (() => {
       if (await verifyPassword(secret, u.salt, u.passwordHash)) return { ok: true, user: u };
       if (u.pinHash && (await verifyPassword(secret, u.pinSalt, u.pinHash)))
         return { ok: true, user: u };
+      if (u.pinSecret && window.RotatingCode && RotatingCode.verify(u.pinSecret, secret))
+        return { ok: true, user: u, viaCode: true };
     }
-    return { ok: false, error: 'كلمة مرور / PIN المدير غير صحيحة' };
+    return { ok: false, error: 'الكود / كلمة المرور غير صحيحة' };
   }
 
   return {

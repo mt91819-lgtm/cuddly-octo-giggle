@@ -562,6 +562,39 @@ input, select, button, textarea {
 .alert-warn { background: rgba(245, 158, 11, 0.18); color: var(--warning); }
 .alert-danger { background: rgba(220, 38, 38, 0.15); color: var(--danger); }
 
+/* ---------- الكود المتغيّر للمدير ---------- */
+.code-live {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.code-now {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: 6px;
+  font-family: 'Courier New', monospace;
+  direction: ltr;
+  color: var(--accent);
+}
+.code-secret { flex: 1; min-width: 200px; }
+.secret-val {
+  display: block;
+  direction: ltr;
+  word-break: break-all;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 0.8rem;
+  margin: 6px 0;
+}
+.code-actions { display: flex; gap: 8px; }
+
 /* ---------- صلاحيات الموظفين ---------- */
 .perm-grid {
   display: grid;
