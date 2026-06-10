@@ -191,7 +191,7 @@ const App = (() => {
     { id: 'inventory', label: 'المخزون والجرد', icon: '🏷️', ready: true, perm: 'inventory' },
     { id: 'returns', label: 'المرتجعات', icon: '↩️', ready: true, perm: 'returns' },
     { id: 'shifts', label: 'الورديات', icon: '⏱️', ready: false, perm: 'shifts' },
-    { id: 'expenses', label: 'المصروفات', icon: '💸', ready: false, perm: 'expenses' },
+    { id: 'expenses', label: 'المصروفات', icon: '💸', ready: true, perm: 'expenses' },
     { id: 'reports', label: 'التقارير', icon: '📈', ready: false, perm: 'reports' },
     { id: 'users', label: 'الموظفون', icon: '👥', ready: true, perm: null, managerOnly: true },
     { id: 'audit', label: 'سجل العمليات', icon: '🧾', ready: false, perm: null, managerOnly: true },
