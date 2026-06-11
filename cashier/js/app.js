@@ -484,6 +484,10 @@ const App = (() => {
           </select>
         </label>
         <label class="switch-row">
+          <input type="checkbox" name="labelFlip" ${app.labelFlip ? 'checked' : ''} />
+          قلب اتجاه الباركود (لو طلع مقلوب)
+        </label>
+        <label class="switch-row">
           <input type="checkbox" name="labelShowName" ${app.labelShowName ? 'checked' : ''} />
           إظهار اسم المنتج على الملصق
         </label>
@@ -555,6 +559,7 @@ const App = (() => {
         labelWidthMm: Number(f.labelWidthMm.value) || 10,
         labelHeightMm: Number(f.labelHeightMm.value) || 40,
         labelRotate: f.labelRotate.value,
+        labelFlip: f.labelFlip.checked,
         labelShowName: f.labelShowName.checked,
         labelShowPrice: f.labelShowPrice.checked,
         labelShowStore: f.labelShowStore.checked,
@@ -587,6 +592,7 @@ const App = (() => {
         labelWidthMm: Number(f.labelWidthMm.value) || 10,
         labelHeightMm: Number(f.labelHeightMm.value) || 40,
         labelRotate: f.labelRotate.value,
+        labelFlip: f.labelFlip.checked,
         labelShowName: f.labelShowName.checked,
         labelShowPrice: f.labelShowPrice.checked,
         labelShowStore: f.labelShowStore.checked,

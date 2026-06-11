@@ -109,7 +109,8 @@ const Barcode = (() => {
 
     const rmode = settings.labelRotate || 'auto';
     const rotate = rmode === 'v' || (rmode === 'auto' && hmm > wmm);
-    const o = rotate ? 'R' : 'N'; // اتجاه الحقول: R = مدوّر 90°
+    // اتجاه الحقول: B = مدوّر -90° (الافتراضي، غير مقلوب)، R = مدوّر +90° (مقلوب)
+    const o = rotate ? (settings.labelFlip ? 'R' : 'B') : 'N';
 
     const m = Math.round(1.2 * dpmm); // هامش ~1.2مم
     const by = dpi >= 300 ? 3 : 2; // عرض أنحف شريط (نقاط)
@@ -219,6 +220,8 @@ const Labels = (() => {
     // التدوير: auto = يدوّر تلقائيًا لو الملصق طويل ورفيع (الطول > العرض)
     const rmode = settings.labelRotate || 'auto';
     const rotate = rmode === 'v' || (rmode === 'auto' && h > w);
+    // اتجاه الدوران: الافتراضي -90° (غير مقلوب)، والقلب يجعله +90°
+    const angle = settings.labelFlip ? 90 : -90;
     // أبعاد منطقة التصميم؛ بعد التدوير 90° تصبح أفقية وتملأ الملصق
     const dw = rotate ? h : w; // عرض التصميم
     const dh = rotate ? w : h; // ارتفاع التصميم
@@ -251,7 +254,7 @@ const Labels = (() => {
   .lbl {
     width: ${dw}mm; height: ${dh}mm;
     position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, -50%)${rotate ? ' rotate(90deg)' : ''};
+    transform: translate(-50%, -50%)${rotate ? ` rotate(${angle}deg)` : ''};
     padding: ${tiny ? '0.2mm 0.5mm' : '0.5mm 1mm'};
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; gap: ${tiny ? '0.1mm' : '0.3mm'}; line-height: 1;

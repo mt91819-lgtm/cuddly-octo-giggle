@@ -32,6 +32,7 @@ const Settings = (() => {
     labelWidthMm: 10, // عرض الملصق في اتجاه رأس الطابعة (مم)
     labelHeightMm: 40, // طول الملصق في اتجاه التغذية/الخروج (مم) — الباركود يجري على طوله
     labelRotate: 'auto', // اتجاه الباركود: auto | h (أفقي) | v (رأسي/مدوّر)
+    labelFlip: false, // قلب اتجاه الدوران (لو طلع الباركود/النص مقلوبًا)
     labelShowName: true, // إظهار اسم المنتج
     labelShowPrice: true, // إظهار السعر
     labelShowStore: false, // إظهار اسم المتجر
