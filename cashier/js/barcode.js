@@ -230,40 +230,64 @@ const Labels = (() => {
 </style></head><body>${cells}</body></html>`;
   }
 
-  /* إرسال ZPL لطابعة Zebra: يجرّب Zebra Browser Print محليًا، وإلا ينزّل ملف .zpl */
-  async function printZpl(labels, settings) {
-    const data = Barcode.zpl(labels, settings);
-    // 1) محاولة Zebra Browser Print (خدمة محلية على المنفذ 9100)
+  // عناوين خدمة Zebra Browser Print (تختلف حسب الإصدار: HTTPS:9101 الأحدث، HTTP:9100 الأقدم)
+  const BP_BASES = [
+    'https://127.0.0.1:9101',
+    'https://localhost:9101',
+    'http://127.0.0.1:9100',
+    'http://localhost:9100',
+  ];
+
+  async function _bpSend(base, data) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 1500);
     try {
-      const base = 'http://localhost:9100';
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 1200);
       const res = await fetch(base + '/default?type=printer', { signal: ctrl.signal });
-      clearTimeout(t);
       const device = await res.json();
       await fetch(base + '/write', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ device: device, data: data }),
       });
-      return { method: 'browserprint' };
-    } catch (e) {
-      // 2) تنزيل ملف .zpl ليُرسَل عبر Zebra Setup Utilities
-      try {
-        const blob = new Blob([data], { type: 'application/octet-stream' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'labels.zpl';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
-      } catch (e2) {
-        console.error('ZPL download failed', e2);
-      }
-      return { method: 'download' };
+      return true;
+    } finally {
+      clearTimeout(t);
     }
+  }
+
+  /* إرسال ZPL لطابعة Zebra: يجرّب Zebra Browser Print محليًا، وإلا ينزّل ملف .zpl */
+  async function printZpl(labels, settings) {
+    const data = Barcode.zpl(labels, settings);
+    // 1) محاولة Zebra Browser Print على كل العناوين المعروفة
+    for (const base of BP_BASES) {
+      try {
+        await _bpSend(base, data);
+        return { method: 'browserprint' };
+      } catch (e) {
+        /* جرّب العنوان التالي */
+      }
+    }
+    // 2) البديل: تنزيل ملف .zpl ليُرسَل عبر Zebra Setup Utilities
+    try {
+      const blob = new Blob([data], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'labels.zpl';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e2) {
+      console.error('ZPL download failed', e2);
+    }
+    if (window.Utils && Utils.toast) {
+      Utils.toast(
+        'لم يتم العثور على Zebra Browser Print — تم تنزيل ملف ZPL. ثبّت Browser Print للطباعة المباشرة، أو أرسل الملف عبر Zebra Setup Utilities.',
+        'info'
+      );
+    }
+    return { method: 'download' };
   }
 
   function print(labels, settings) {
