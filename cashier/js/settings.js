@@ -27,8 +27,9 @@ const Settings = (() => {
     printFormat: '80mm', // 58mm | 80mm | A4
     receiptFooter: 'شكرًا لزيارتكم',
     // ملصقات الباركود (طابعة الباركود)
-    labelWidthMm: 50, // عرض الملصق
-    labelHeightMm: 30, // ارتفاع الملصق
+    labelWidthMm: 10, // عرض الملصق (مم)
+    labelHeightMm: 40, // ارتفاع/طول الملصق (مم)
+    labelRotate: 'auto', // اتجاه الباركود: auto | h (أفقي) | v (رأسي/مدوّر)
     labelShowName: true, // إظهار اسم المنتج
     labelShowPrice: true, // إظهار السعر
     labelShowStore: false, // إظهار اسم المتجر

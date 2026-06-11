@@ -455,14 +455,21 @@ const App = (() => {
 
         <h3 class="form-section-title">ملصقات الباركود (طابعة الباركود)</h3>
         <label>عرض الملصق (مم)
-          <input type="number" name="labelWidthMm" min="20" max="100" value="${Number(
+          <input type="number" name="labelWidthMm" min="8" max="120" step="1" value="${Number(
             app.labelWidthMm
           )}" />
         </label>
-        <label>ارتفاع الملصق (مم)
-          <input type="number" name="labelHeightMm" min="15" max="100" value="${Number(
+        <label>طول/ارتفاع الملصق (مم)
+          <input type="number" name="labelHeightMm" min="8" max="120" step="1" value="${Number(
             app.labelHeightMm
           )}" />
+        </label>
+        <label>اتجاه الباركود
+          <select name="labelRotate">
+            <option value="auto" ${app.labelRotate === 'auto' ? 'selected' : ''}>تلقائي (يدوّر للملصق الطويل الرفيع)</option>
+            <option value="h" ${app.labelRotate === 'h' ? 'selected' : ''}>أفقي</option>
+            <option value="v" ${app.labelRotate === 'v' ? 'selected' : ''}>رأسي (مدوّر 90°)</option>
+          </select>
         </label>
         <label class="switch-row">
           <input type="checkbox" name="labelShowName" ${app.labelShowName ? 'checked' : ''} />
@@ -526,8 +533,9 @@ const App = (() => {
         currency: f.currency.value.trim(),
         receiptFooter: f.receiptFooter.value.trim(),
         printFormat: f.printFormat.value,
-        labelWidthMm: Number(f.labelWidthMm.value) || 50,
-        labelHeightMm: Number(f.labelHeightMm.value) || 30,
+        labelWidthMm: Number(f.labelWidthMm.value) || 10,
+        labelHeightMm: Number(f.labelHeightMm.value) || 40,
+        labelRotate: f.labelRotate.value,
         labelShowName: f.labelShowName.checked,
         labelShowPrice: f.labelShowPrice.checked,
         labelShowStore: f.labelShowStore.checked,

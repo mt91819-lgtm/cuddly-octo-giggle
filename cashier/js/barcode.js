@@ -39,26 +39,26 @@ const Barcode = (() => {
     return codes.map((c) => PATTERNS[c]).join('');
   }
 
-  /* SVG للباركود. opts: { height, moduleWidth } */
+  /* SVG للباركود — يتمدد ليملأ الحاوية (الحجم الفعلي يُضبط بالـ CSS بالمليمتر) */
   function svg(value, opts) {
     opts = opts || {};
     const widths = _encode(value);
-    const h = opts.height || 40;
+    const H = 100; // وحدات داخلية لـ viewBox فقط
     let x = 0;
     let totalModules = 0;
     let bar = true; // أول عنصر شريط
     const rects = [];
     for (let i = 0; i < widths.length; i++) {
       const w = +widths[i];
-      if (bar) rects.push(`<rect x="${x}" y="0" width="${w}" height="${h}"/>`);
+      if (bar) rects.push(`<rect x="${x}" y="0" width="${w}" height="${H}"/>`);
       x += w;
       totalModules += w;
       bar = !bar;
     }
     return (
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalModules} ${h}" ` +
-      `preserveAspectRatio="none" width="100%" height="${h}" shape-rendering="crispEdges">` +
-      `<rect x="0" y="0" width="${totalModules}" height="${h}" fill="#fff"/>` +
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalModules} ${H}" ` +
+      `preserveAspectRatio="none" width="100%" height="100%" shape-rendering="crispEdges">` +
+      `<rect x="0" y="0" width="${totalModules}" height="${H}" fill="#fff"/>` +
       `<g fill="#000">${rects.join('')}</g></svg>`
     );
   }
@@ -95,17 +95,25 @@ const Labels = (() => {
     const showStore = !!settings.labelShowStore;
     const cur = settings.currency || 'ج.م';
 
+    // التدوير: auto = يدوّر تلقائيًا لو الملصق طويل ورفيع (الطول > العرض)
+    const rmode = settings.labelRotate || 'auto';
+    const rotate = rmode === 'v' || (rmode === 'auto' && h > w);
+    // أبعاد منطقة التصميم؛ بعد التدوير 90° تصبح أفقية وتملأ الملصق
+    const dw = rotate ? h : w; // عرض التصميم
+    const dh = rotate ? w : h; // ارتفاع التصميم
+    // ارتفاع الباركود ≈ نصف ارتفاع منطقة التصميم
+    const bcMm = Math.max(5, (dh * 0.5).toFixed(1));
+
     const cells = labels
-      .map((l) => {
-        const bcHeight = Math.max(18, Math.round(h * 1.4));
-        return `<div class="lbl">
+      .map(
+        (l) => `<div class="page"><div class="lbl">
           ${showStore ? `<div class="l-store">${_esc(settings.storeName || '')}</div>` : ''}
           ${showName ? `<div class="l-name">${_esc(l.name)}</div>` : ''}
-          <div class="l-bc">${Barcode.svg(l.barcode, { height: bcHeight })}</div>
+          <div class="l-bc">${Barcode.svg(l.barcode)}</div>
           <div class="l-code">${_esc(l.barcode)}</div>
           ${showPrice ? `<div class="l-price">${_money(l.price, cur)}</div>` : ''}
-        </div>`;
-      })
+        </div></div>`
+      )
       .join('');
 
     return `<!DOCTYPE html>
@@ -113,18 +121,21 @@ const Labels = (() => {
   @page { size: ${w}mm ${h}mm; margin: 0; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: 'Cairo','Tahoma',sans-serif; color:#000; }
+  .page { width: ${w}mm; height: ${h}mm; position: relative; overflow: hidden; page-break-after: always; }
   .lbl {
-    width: ${w}mm; height: ${h}mm;
-    padding: 1mm 1.5mm; overflow: hidden;
+    width: ${dw}mm; height: ${dh}mm;
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%)${rotate ? ' rotate(90deg)' : ''};
+    padding: 0.5mm 1mm;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    page-break-after: always; text-align: center;
+    text-align: center; gap: 0.3mm;
   }
-  .l-store { font-size: 7pt; font-weight: bold; line-height: 1.1; }
-  .l-name { font-size: 7pt; line-height: 1.1; max-height: 2.4em; overflow: hidden; }
-  .l-bc { width: 100%; flex: 0 0 auto; }
-  .l-bc svg { display: block; }
+  .l-store { font-size: 6pt; font-weight: bold; line-height: 1.05; }
+  .l-name { font-size: 6pt; line-height: 1.05; max-height: 2.2em; overflow: hidden; }
+  .l-bc { width: 100%; height: ${bcMm}mm; }
+  .l-bc svg { display: block; width: 100%; height: 100%; }
   .l-code { font-size: 6pt; letter-spacing: 1px; font-family: monospace; }
-  .l-price { font-size: 9pt; font-weight: bold; }
+  .l-price { font-size: 8pt; font-weight: bold; }
 </style></head><body>${cells}</body></html>`;
   }
 
