@@ -747,3 +747,15 @@ input, select, button, textarea {
   .sidebar { position: fixed; z-index: 500; height: 100vh; }
   .cards { grid-template-columns: 1fr 1fr; }
 }
+
+/* معاينة الملصق المباشرة في الإعدادات */
+.label-preview-wrap { margin: 8px 0 4px; }
+#label-preview {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 10px;
+  background: #fff;
+  border: 1px dashed #aaa;
+  border-radius: 6px;
+}
+#label-preview svg { height: 180px; width: auto; display: block; }

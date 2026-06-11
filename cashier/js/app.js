@@ -499,6 +499,10 @@ const App = (() => {
           <input type="checkbox" name="labelShowStore" ${app.labelShowStore ? 'checked' : ''} />
           إظهار اسم المتجر على الملصق
         </label>
+        <div class="label-preview-wrap">
+          <span class="form-note">معاينة مباشرة (هكذا سيُطبع الملصق تمامًا):</span>
+          <div id="label-preview"></div>
+        </div>
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" id="test-label-btn">🏷️ طباعة ملصق تجريبي</button>
           <button type="button" class="btn btn-ghost" id="test-receipt-btn">🧾 طباعة إيصال تجريبي</button>
@@ -652,6 +656,38 @@ const App = (() => {
       Utils.toast('تم فتح نافذة طباعة الإيصال التجريبي', 'success');
     };
 
+    // معاينة مباشرة للملصق — تتحدّث مع كل تغيير، ومطابقة لما سيُطبع
+    const updateLabelPreview = () => {
+      const f = document.getElementById('settings-form');
+      const box = document.getElementById('label-preview');
+      if (!f || !box || !window.Labels || !Labels.labelSvg) return;
+      const s = {
+        currency: f.currency.value.trim(),
+        labelWidthMm: Number(f.labelWidthMm.value) || 10,
+        labelHeightMm: Number(f.labelHeightMm.value) || 40,
+        labelRotate: f.labelRotate.value,
+        labelFlip: f.labelFlip.checked,
+        labelShowName: f.labelShowName.checked,
+        labelShowPrice: f.labelShowPrice.checked,
+      };
+      try {
+        box.innerHTML = Labels.labelSvg(
+          { name: 'منتج تجريبي', price: 123.45, barcode: '200000000013' },
+          s
+        );
+      } catch (e) {}
+    };
+    ['labelWidthMm', 'labelHeightMm', 'labelRotate', 'labelFlip', 'labelShowName', 'labelShowPrice', 'currency'].forEach(
+      (n) => {
+        const el = document.getElementById('settings-form')[n];
+        if (el) {
+          el.addEventListener('input', updateLabelPreview);
+          el.addEventListener('change', updateLabelPreview);
+        }
+      }
+    );
+    updateLabelPreview();
+
     // نسخة سطح المكتب: أظهر قوائم اختيار الطابعات واملأها + اكتشاف تلقائي
     if (window.desktopPrint && window.desktopPrint.isDesktop) {
       const box = document.getElementById('desktop-printers');
@@ -686,11 +722,6 @@ const App = (() => {
         fill(f.labelPrinterName, labelGuess);
         fill(f.receiptPrinterName, receiptGuess);
 
-        // أول مرّة: لو في طابعة Zebra واكتُشفت ولم يُحفظ شيء بعد، فعّل وضع ZPL ومقاس 10×40
-        if (!app.labelPrinterName && labelGuess && f.labelPrinter && f.labelPrinter.value !== 'zebra-zpl') {
-          f.labelPrinter.value = 'zebra-zpl';
-        }
-
         // زر الاكتشاف اليدوي
         const btn = document.getElementById('autodetect-btn');
         if (btn)
@@ -699,7 +730,6 @@ const App = (() => {
             const rg = matchPrinter(printers, 'receipt');
             if (lg) f.labelPrinterName.value = lg;
             if (rg) f.receiptPrinterName.value = rg;
-            if (lg && f.labelPrinter) f.labelPrinter.value = 'zebra-zpl';
             Utils.toast(
               'تم الاكتشاف: ملصقات=' + (lg || 'غير معروفة') + ' | إيصال=' + (rg || 'غير معروفة') + ' — اضغط حفظ',
               'info'
