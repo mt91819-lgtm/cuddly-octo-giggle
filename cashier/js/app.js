@@ -495,6 +495,11 @@ const App = (() => {
           <input type="checkbox" name="labelShowStore" ${app.labelShowStore ? 'checked' : ''} />
           إظهار اسم المتجر على الملصق
         </label>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="test-label-btn">🏷️ طباعة ملصق تجريبي</button>
+          <button type="button" class="btn btn-ghost" id="test-receipt-btn">🧾 طباعة إيصال تجريبي</button>
+        </div>
+        <p class="form-note">تستخدم أزرار الاختبار القيم المعروضة بالأعلى (حتى قبل الحفظ) للتأكد من المقاس والطابعة.</p>
 
         <h3 class="form-section-title">إعدادات البيع والمخزون</h3>
         <label class="switch-row">
@@ -567,6 +572,60 @@ const App = (() => {
       if (tb) tb.textContent = Settings.getUI().theme === 'dark' ? '☀️' : '🌙';
       setupAutoLock();
       Utils.toast('تم حفظ الإعدادات بنجاح', 'success');
+    };
+
+    // قيم الملصق/الطباعة الحالية من النموذج (لاختبار ما هو معروض قبل الحفظ)
+    const _formLabelSettings = () => {
+      const f = document.getElementById('settings-form');
+      return {
+        storeName: f.storeName.value.trim(),
+        currency: f.currency.value.trim(),
+        receiptFooter: f.receiptFooter.value.trim(),
+        printFormat: f.printFormat.value,
+        labelPrinter: f.labelPrinter.value,
+        labelDpi: Number(f.labelDpi.value) || 203,
+        labelWidthMm: Number(f.labelWidthMm.value) || 10,
+        labelHeightMm: Number(f.labelHeightMm.value) || 40,
+        labelRotate: f.labelRotate.value,
+        labelShowName: f.labelShowName.checked,
+        labelShowPrice: f.labelShowPrice.checked,
+        labelShowStore: f.labelShowStore.checked,
+      };
+    };
+
+    document.getElementById('test-label-btn').onclick = () => {
+      const s = _formLabelSettings();
+      Labels.print([{ name: 'منتج تجريبي', price: 123.45, barcode: '200000000013' }], s);
+      Utils.toast(
+        s.labelPrinter === 'zebra-zpl'
+          ? 'تم إرسال ملصق ZPL تجريبي (أو تنزيل ملف labels.zpl)'
+          : 'تم فتح نافذة طباعة الملصق التجريبي',
+        'success'
+      );
+    };
+
+    document.getElementById('test-receipt-btn').onclick = () => {
+      const s = _formLabelSettings();
+      window.__currency = s.currency;
+      Receipt.print(
+        {
+          number: 'TEST-0001',
+          createdAt: Date.now(),
+          userName: 'اختبار',
+          items: [
+            { name: 'منتج تجريبي ١', qty: 2, unitPrice: 50, lineTotal: 100 },
+            { name: 'منتج تجريبي ٢', qty: 1, unitPrice: 23.45, lineTotal: 23.45 },
+          ],
+          subtotal: 123.45,
+          totalDiscount: 0,
+          total: 123.45,
+          paymentMethod: 'cash',
+          paidAmount: 150,
+          change: 26.55,
+        },
+        s
+      );
+      Utils.toast('تم فتح نافذة طباعة الإيصال التجريبي', 'success');
     };
   }
 
