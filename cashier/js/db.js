@@ -130,9 +130,32 @@ const DB = (() => {
     },
   };
 
-  /* فتح / إنشاء قاعدة البيانات */
+  /* فتح / إنشاء قاعدة البيانات (مع إعادة محاولة عند قفل مؤقت) */
   function open() {
     if (_db) return Promise.resolve(_db);
+    return _openOnce().catch((err) => {
+      // "Internal error" يحدث غالبًا عند تنازع نسختين على قفل القاعدة — نعيد المحاولة
+      const msg = (err && err.message) || '';
+      if (/internal error|unknownerror/i.test(msg) || (err && err.name === 'UnknownError')) {
+        return _delay(1500)
+          .then(_openOnce)
+          .catch(() => _delay(3000).then(_openOnce))
+          .catch(() => {
+            throw new Error(
+              'تعذّر فتح قاعدة البيانات (قد تكون نسخة أخرى من البرنامج مفتوحة). ' +
+                'أغلق كل نسخ البرنامج أو أعد تشغيل الجهاز ثم افتح البرنامج من جديد.'
+            );
+          });
+      }
+      throw err;
+    });
+  }
+
+  function _delay(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  function _openOnce() {
     return new Promise((resolve, reject) => {
       if (!('indexedDB' in window)) {
         reject(new Error('المتصفح لا يدعم IndexedDB'));

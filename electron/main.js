@@ -7,6 +7,19 @@ const { printRaw } = require('./print-raw');
 
 let mainWindow = null;
 
+// منع تشغيل أكثر من نسخة (نسختان تتنازعان قفل قاعدة البيانات → Internal error)
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
