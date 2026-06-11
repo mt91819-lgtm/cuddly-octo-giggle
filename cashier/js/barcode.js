@@ -187,8 +187,13 @@ const Labels = (() => {
     // أبعاد منطقة التصميم؛ بعد التدوير 90° تصبح أفقية وتملأ الملصق
     const dw = rotate ? h : w; // عرض التصميم
     const dh = rotate ? w : h; // ارتفاع التصميم
-    // ارتفاع الباركود ≈ نصف ارتفاع منطقة التصميم
-    const bcMm = Math.max(5, (dh * 0.5).toFixed(1));
+    // ملصق صغير الارتفاع: نقلّل المحتوى ونصغّر الخطوط حتى لا يُقصّ
+    const tiny = dh <= 16;
+    const bcMm = Math.max(4, +(dh * (tiny ? 0.42 : 0.5)).toFixed(1));
+    const fName = tiny ? 4.5 : 6; // pt
+    const fCode = tiny ? 4 : 6;
+    const fPrice = tiny ? 6 : 8;
+    const showCode = !tiny; // على الملصق الصغير نكتفي بالباركود لتوفير المساحة
 
     const cells = labels
       .map(
@@ -196,7 +201,7 @@ const Labels = (() => {
           ${showStore ? `<div class="l-store">${_esc(settings.storeName || '')}</div>` : ''}
           ${showName ? `<div class="l-name">${_esc(l.name)}</div>` : ''}
           <div class="l-bc">${Barcode.svg(l.barcode)}</div>
-          <div class="l-code">${_esc(l.barcode)}</div>
+          ${showCode ? `<div class="l-code">${_esc(l.barcode)}</div>` : ''}
           ${showPrice ? `<div class="l-price">${_money(l.price, cur)}</div>` : ''}
         </div></div>`
       )
@@ -212,16 +217,16 @@ const Labels = (() => {
     width: ${dw}mm; height: ${dh}mm;
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%)${rotate ? ' rotate(90deg)' : ''};
-    padding: 0.5mm 1mm;
+    padding: ${tiny ? '0.2mm 0.5mm' : '0.5mm 1mm'};
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; gap: 0.3mm;
+    text-align: center; gap: ${tiny ? '0.1mm' : '0.3mm'}; line-height: 1;
   }
-  .l-store { font-size: 6pt; font-weight: bold; line-height: 1.05; }
-  .l-name { font-size: 6pt; line-height: 1.05; max-height: 2.2em; overflow: hidden; }
+  .l-store { font-size: ${fName}pt; font-weight: bold; line-height: 1.05; }
+  .l-name { font-size: ${fName}pt; line-height: 1.05; max-height: ${tiny ? '1.1em' : '2.2em'}; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
   .l-bc { width: 100%; height: ${bcMm}mm; }
   .l-bc svg { display: block; width: 100%; height: 100%; }
-  .l-code { font-size: 6pt; letter-spacing: 1px; font-family: monospace; }
-  .l-price { font-size: 8pt; font-weight: bold; }
+  .l-code { font-size: ${fCode}pt; letter-spacing: 1px; font-family: monospace; }
+  .l-price { font-size: ${fPrice}pt; font-weight: bold; }
 </style></head><body>${cells}</body></html>`;
   }
 
