@@ -63,7 +63,93 @@ const Barcode = (() => {
     );
   }
 
-  return { svg };
+  /* ----- ZPL: أمر طباعة مباشر لطابعات Zebra (مثل ZD410) ----- *
+   * يعطي جودة باركود مثالية ومقاسًا مضبوطًا، ويتجاوز إعدادات نافذة طباعة المتصفح.
+   * label: { name, price, barcode } — settings: { labelDpi, labelWidthMm,
+   * labelHeightMm, labelRotate, labelShowName, labelShowPrice, currency }
+   */
+  function _zplClean(s) {
+    // إزالة محارف تحكّم ZPL والاحتفاظ بـ ASCII القابل للطباعة فقط
+    return String(s == null ? '' : s).replace(/[\^~]/g, ' ').replace(/[^\x20-\x7E]/g, '').trim();
+  }
+
+  function zplLabel(label, settings) {
+    settings = settings || {};
+    const dpi = Number(settings.labelDpi) === 300 ? 300 : 203;
+    const dpmm = dpi / 25.4;
+    const wmm = Number(settings.labelWidthMm) || 10;
+    const hmm = Number(settings.labelHeightMm) || 40;
+    const pw = Math.round(wmm * dpmm); // عرض الطباعة (عرض رأس الطابعة)
+    const ll = Math.round(hmm * dpmm); // طول الملصق (اتجاه التغذية)
+
+    const rmode = settings.labelRotate || 'auto';
+    const rotate = rmode === 'v' || (rmode === 'auto' && hmm > wmm);
+    const o = rotate ? 'R' : 'N'; // اتجاه الحقول: R = مدوّر 90°
+
+    const m = Math.round(1.2 * dpmm); // هامش ~1.2مم
+    const by = dpi >= 300 ? 3 : 2; // عرض أنحف شريط (نقاط)
+    const fs = dpi >= 300 ? 30 : 20; // ارتفاع خط النص (نقاط)
+
+    const data = _zplClean(label.barcode);
+    const name = _zplClean(label.name);
+    const price = _zplClean(_zplMoney(label.price, settings.currency));
+    let wantName = settings.labelShowName !== false && !!name;
+    let wantPrice = settings.labelShowPrice !== false && !!price;
+
+    const lines = [];
+    lines.push('^XA');
+    lines.push('^CI28'); // UTF-8
+    lines.push('^PW' + pw);
+    lines.push('^LL' + ll);
+    lines.push('^LH0,0');
+    lines.push(`^BY${by}`);
+
+    if (rotate) {
+      // الأعمدة تترتّب جنبًا إلى جنب عبر عرض الملصق (10مم)، كلٌّ يمتد بطول الملصق (40مم).
+      // المساحة ضيقة: نعطي الأولوية للباركود ثم السعر، ونُسقِط الاسم لو لم يتّسع.
+      const col = fs + 4; // عرض عمود نص واحد
+      const avail = pw - 2 * m;
+      let need = (wantName ? col : 0) + (wantPrice ? col : 0);
+      let barLen = avail - need;
+      if (barLen < 24 && wantName) { wantName = false; need -= col; barLen = avail - need; }
+      if (barLen < 24 && wantPrice) { wantPrice = false; need -= col; barLen = avail - need; }
+      barLen = Math.max(24, barLen);
+      const y = Math.round(ll * 0.06);
+      let x = m;
+      lines.push(`^FO${x},${y}^BC${o},${barLen},Y,N,N^FD${data}^FS`);
+      x += barLen + 4;
+      if (wantPrice) { lines.push(`^FO${x},${y}^A0${o},${fs},${fs}^FD${price}^FS`); x += col; }
+      if (wantName) { lines.push(`^FO${x},${y}^A0${o},${fs},${fs}^FD${name}^FS`); }
+    } else {
+      const barLen = Math.max(24, Math.round(ll * 0.5));
+      let y = m;
+      if (wantName) {
+        lines.push(`^FO${m},${y}^A0N,${fs},${fs}^FD${name}^FS`);
+        y += fs + 4;
+      }
+      lines.push(`^FO${m},${y}^BCN,${barLen},Y,N,N^FD${data}^FS`);
+      y += barLen + fs + 8;
+      if (wantPrice) {
+        lines.push(`^FO${m},${y}^A0N,${fs},${fs}^FD${price}^FS`);
+      }
+    }
+    lines.push('^XZ');
+    return lines.join('\n');
+  }
+
+  function _zplMoney(n, cur) {
+    const num = Number(n || 0).toFixed(2);
+    // العملات غير اللاتينية (مثل "ج.م") لا تتوفر في خط Zebra الافتراضي → نستخدم EGP
+    const c = /^[\x20-\x7E]+$/.test(String(cur || '')) ? cur : 'EGP';
+    return num + ' ' + c;
+  }
+
+  /* نص ZPL لعدة ملصقات (كتلة لكل ملصق) */
+  function zpl(labels, settings) {
+    return (labels || []).map((l) => zplLabel(l, settings)).join('\n');
+  }
+
+  return { svg, zpl, zplLabel };
 })();
 
 /* ---------- طباعة ملصقات الباركود ---------- */
@@ -139,8 +225,48 @@ const Labels = (() => {
 </style></head><body>${cells}</body></html>`;
   }
 
+  /* إرسال ZPL لطابعة Zebra: يجرّب Zebra Browser Print محليًا، وإلا ينزّل ملف .zpl */
+  async function printZpl(labels, settings) {
+    const data = Barcode.zpl(labels, settings);
+    // 1) محاولة Zebra Browser Print (خدمة محلية على المنفذ 9100)
+    try {
+      const base = 'http://localhost:9100';
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 1200);
+      const res = await fetch(base + '/default?type=printer', { signal: ctrl.signal });
+      clearTimeout(t);
+      const device = await res.json();
+      await fetch(base + '/write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device: device, data: data }),
+      });
+      return { method: 'browserprint' };
+    } catch (e) {
+      // 2) تنزيل ملف .zpl ليُرسَل عبر Zebra Setup Utilities
+      try {
+        const blob = new Blob([data], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'labels.zpl';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      } catch (e2) {
+        console.error('ZPL download failed', e2);
+      }
+      return { method: 'download' };
+    }
+  }
+
   function print(labels, settings) {
     if (!labels || !labels.length) return;
+    settings = settings || {};
+    if (settings.labelPrinter === 'zebra-zpl') {
+      return printZpl(labels, settings);
+    }
     const html = buildHtml(labels, settings);
     const iframe = document.createElement('iframe');
     iframe.setAttribute('aria-hidden', 'true');
@@ -161,7 +287,7 @@ const Labels = (() => {
     }, 300);
   }
 
-  return { buildHtml, print };
+  return { buildHtml, print, printZpl };
 })();
 
 window.Barcode = Barcode;

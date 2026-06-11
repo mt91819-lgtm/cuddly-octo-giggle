@@ -454,6 +454,18 @@ const App = (() => {
         </label>
 
         <h3 class="form-section-title">ملصقات الباركود (طابعة الباركود)</h3>
+        <label>طريقة الطباعة
+          <select name="labelPrinter">
+            <option value="browser" ${app.labelPrinter === 'browser' ? 'selected' : ''}>عبر المتصفح (أي طابعة)</option>
+            <option value="zebra-zpl" ${app.labelPrinter === 'zebra-zpl' ? 'selected' : ''}>Zebra ZPL مباشر (ZD410)</option>
+          </select>
+        </label>
+        <label>دقة طابعة Zebra (ZPL)
+          <select name="labelDpi">
+            <option value="203" ${Number(app.labelDpi) === 203 ? 'selected' : ''}>203 dpi</option>
+            <option value="300" ${Number(app.labelDpi) === 300 ? 'selected' : ''}>300 dpi</option>
+          </select>
+        </label>
         <label>عرض الملصق (مم)
           <input type="number" name="labelWidthMm" min="8" max="120" step="1" value="${Number(
             app.labelWidthMm
@@ -533,6 +545,8 @@ const App = (() => {
         currency: f.currency.value.trim(),
         receiptFooter: f.receiptFooter.value.trim(),
         printFormat: f.printFormat.value,
+        labelPrinter: f.labelPrinter.value,
+        labelDpi: Number(f.labelDpi.value) || 203,
         labelWidthMm: Number(f.labelWidthMm.value) || 10,
         labelHeightMm: Number(f.labelHeightMm.value) || 40,
         labelRotate: f.labelRotate.value,

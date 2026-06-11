@@ -27,6 +27,8 @@ const Settings = (() => {
     printFormat: '80mm', // 58mm | 80mm | A4
     receiptFooter: 'شكرًا لزيارتكم',
     // ملصقات الباركود (طابعة الباركود)
+    labelPrinter: 'browser', // browser (طباعة عبر المتصفح) | zebra-zpl (أمر ZPL مباشر لطابعات Zebra)
+    labelDpi: 203, // دقة طابعة Zebra: 203 أو 300 (تُستخدم مع ZPL فقط)
     labelWidthMm: 10, // عرض الملصق (مم)
     labelHeightMm: 40, // ارتفاع/طول الملصق (مم)
     labelRotate: 'auto', // اتجاه الباركود: auto | h (أفقي) | v (رأسي/مدوّر)
