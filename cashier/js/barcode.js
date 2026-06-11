@@ -21,11 +21,28 @@ const Barcode = (() => {
     '114131','311141','411131','211412','211214','211232','2331112',
   ];
   const START_B = 104;
+  const START_C = 105;
   const STOP = 106;
 
-  // إرجاع تسلسل العروض (modules) لقيمة نصية مرمّزة بـ Code128B
+  // ترميز Set C للأرقام (رقمان لكل رمز) — يعطي باركود أنصاف العرض وأنسب للقراءة
+  function _encodeC(value) {
+    let sum = START_C;
+    const codes = [START_C];
+    let pos = 1;
+    for (let i = 0; i < value.length; i += 2) {
+      const v = parseInt(value.substr(i, 2), 10);
+      codes.push(v);
+      sum += v * pos++;
+    }
+    codes.push(sum % 103);
+    codes.push(STOP);
+    return codes.map((c) => PATTERNS[c]).join('');
+  }
+
+  // إرجاع تسلسل العروض (modules) — يستخدم Set C للأرقام الزوجية الطول، وإلا Set B
   function _encode(value) {
     value = String(value);
+    if (/^\d+$/.test(value) && value.length % 2 === 0) return _encodeC(value);
     let sum = START_B;
     const codes = [START_B];
     for (let i = 0; i < value.length; i++) {
@@ -37,6 +54,14 @@ const Barcode = (() => {
     codes.push(sum % 103); // رقم التحقق (checksum)
     codes.push(STOP);
     return codes.map((c) => PATTERNS[c]).join('');
+  }
+
+  /* مجموع وحدات (modules) الباركود — لتقدير عرضه بالنقاط في ZPL */
+  function _modulesWidth(value) {
+    const widths = _encode(value);
+    let total = 0;
+    for (let i = 0; i < widths.length; i++) total += +widths[i];
+    return total;
   }
 
   /* SVG للباركود — يتمدد ليملأ الحاوية (الحجم الفعلي يُضبط بالـ CSS بالمليمتر) */
@@ -120,6 +145,16 @@ const Barcode = (() => {
       x += barLen + 4;
       if (wantPrice) { lines.push(`^FO${x},${y}^A0${o},${fs},${fs}^FD${price}^FS`); x += col; }
       if (wantName) { lines.push(`^FO${x},${y}^A0${o},${fs},${fs}^FD${name}^FS`); }
+    } else if (ll <= 110 && pw >= ll * 2) {
+      // ملصق عريض ومنخفض (مثل 40×10مم): الباركود على الشمال، السعر بجانبه على اليمين.
+      const bcDots = _modulesWidth(data) * by; // عرض الباركود التقريبي بالنقاط
+      const bh = Math.max(24, ll - 2 * m - fs); // ارتفاع الأعمدة (مع ترك مساحة لسطر الأرقام)
+      lines.push(`^FO${m},${m}^BCN,${bh},Y,N,N^FD${data}^FS`);
+      if (wantPrice) {
+        const px = m + bcDots + Math.round(2 * dpmm);
+        const pfs = Math.min(Math.round(ll * 0.6), 40);
+        if (px + pfs < pw) lines.push(`^FO${px},${Math.round((ll - pfs) / 2)}^A0N,${pfs},${pfs}^FD${price}^FS`);
+      }
     } else {
       const barLen = Math.max(24, Math.round(ll * 0.5));
       let y = m;

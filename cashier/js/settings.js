@@ -29,8 +29,8 @@ const Settings = (() => {
     // ملصقات الباركود (طابعة الباركود)
     labelPrinter: 'browser', // browser (طباعة عبر المتصفح) | zebra-zpl (أمر ZPL مباشر لطابعات Zebra)
     labelDpi: 203, // دقة طابعة Zebra: 203 أو 300 (تُستخدم مع ZPL فقط)
-    labelWidthMm: 10, // عرض الملصق (مم)
-    labelHeightMm: 40, // ارتفاع/طول الملصق (مم)
+    labelWidthMm: 40, // عرض الملصق عبر عرض الطابعة (مم)
+    labelHeightMm: 10, // طول الملصق في اتجاه التغذية (مم)
     labelRotate: 'auto', // اتجاه الباركود: auto | h (أفقي) | v (رأسي/مدوّر)
     labelShowName: true, // إظهار اسم المنتج
     labelShowPrice: true, // إظهار السعر
