@@ -88,6 +88,23 @@ const Barcode = (() => {
     );
   }
 
+  /* قائمة الأشرطة السوداء كأبعاد (x,width) بوحدات modules + الإجمالي — لرسم ملصق مخصّص */
+  function modules(value) {
+    const widths = _encode(value);
+    const rects = [];
+    let x = 0;
+    let total = 0;
+    let bar = true;
+    for (let i = 0; i < widths.length; i++) {
+      const wd = +widths[i];
+      if (bar) rects.push({ x: x, w: wd });
+      x += wd;
+      total += wd;
+      bar = !bar;
+    }
+    return { rects: rects, total: total };
+  }
+
   /* ----- ZPL: أمر طباعة مباشر لطابعات Zebra (مثل ZD410) ----- *
    * يعطي جودة باركود مثالية ومقاسًا مضبوطًا، ويتجاوز إعدادات نافذة طباعة المتصفح.
    * label: { name, price, barcode } — settings: { labelDpi, labelWidthMm,
@@ -185,7 +202,7 @@ const Barcode = (() => {
     return (labels || []).map((l) => zplLabel(l, settings)).join('\n');
   }
 
-  return { svg, zpl, zplLabel };
+  return { svg, modules, zpl, zplLabel };
 })();
 
 /* ---------- طباعة ملصقات الباركود ---------- */
@@ -208,63 +225,100 @@ const Labels = (() => {
     );
   }
 
+  /* يبني الملصق كله كصورة SVG واحدة بالاتجاه الصحيح (بدون تدوير CSS) —
+   * أكثر ثباتًا في الطباعة ولا يتعرّض للقصّ أو القلب من المتصفح/التعريف. */
+  function labelSvg(label, settings) {
+    settings = settings || {};
+    const w = Number(settings.labelWidthMm) || 50;
+    const h = Number(settings.labelHeightMm) || 30;
+    const cur = settings.currency || 'ج.م';
+    const showName = settings.labelShowName !== false;
+    const showPrice = settings.labelShowPrice !== false;
+    const rmode = settings.labelRotate || 'auto';
+    const rotate = rmode === 'v' || (rmode === 'auto' && h > w);
+    const flip = !!settings.labelFlip;
+
+    const S = 10; // وحدة = 1/10 مم (للدقة)
+    const W = Math.round(w * S);
+    const H = Math.round(h * S);
+    // نُصمّم أفقيًا: العرض = الطول الفعلي للملصق، الارتفاع = السُمك — ثم ندوّر المجموعة كلها داخل SVG
+    const DW = rotate ? H : W; // محور الطول (يجري عليه الباركود)
+    const DH = rotate ? W : H; // محور السُمك
+    const m = Math.round(0.8 * S);
+
+    const { rects, total } = Barcode.modules(String(label.barcode));
+    const priceStr = showPrice ? _money(label.price, cur) : '';
+    const nameStr = showName ? String(label.name || '') : '';
+
+    // نحجز جزءًا من الطول للسعر (يُقرأ بمحاذاة الطول) والباقي للباركود
+    const priceW = priceStr ? Math.round(DW * 0.28) : 0;
+    const bcLen = DW - 2 * m - priceW;
+    const bcH = Math.round(DH * (nameStr ? 0.5 : 0.62));
+    const bcY = nameStr ? Math.round(DH * 0.22) : Math.round((DH - bcH - DH * 0.18) / 2) + m;
+    const unit = bcLen / total;
+
+    const bars = rects
+      .map(
+        (r) =>
+          `<rect x="${(m + r.x * unit).toFixed(1)}" y="${bcY}" width="${(r.w * unit).toFixed(
+            1
+          )}" height="${bcH}"/>`
+      )
+      .join('');
+
+    // اسم المنتج (فوق الباركود) — اختياري
+    const nameFs = Math.round(DH * 0.16);
+    const nameEl = nameStr
+      ? `<text x="${m + bcLen / 2}" y="${Math.round(DH * 0.16)}" font-family="sans-serif" font-size="${nameFs}" text-anchor="middle">${_esc(
+          nameStr
+        )}</text>`
+      : '';
+
+    // أرقام الباركود تحت الأعمدة
+    const numFs = Math.round(DH * 0.15);
+    const numEl = `<text x="${m + bcLen / 2}" y="${bcY + bcH + numFs + 2}" font-family="monospace" font-size="${numFs}" text-anchor="middle" letter-spacing="1">${_esc(
+      String(label.barcode)
+    )}</text>`;
+
+    // السعر — على امتداد الطول، بحجم يتلاءم مع المساحة المتاحة
+    let priceEl = '';
+    if (priceStr) {
+      const fitFs = Math.floor((priceW * 1.7) / Math.max(6, priceStr.length));
+      const priceFs = Math.max(Math.round(DH * 0.18), Math.min(fitFs, Math.round(DH * 0.5)));
+      priceEl = `<text x="${DW - m - priceW / 2}" y="${DH / 2}" dominant-baseline="middle" font-family="sans-serif" font-weight="bold" font-size="${priceFs}" text-anchor="middle">${_esc(
+        priceStr
+      )}</text>`;
+    }
+
+    const design = `<rect x="0" y="0" width="${DW}" height="${DH}" fill="#fff"/><g fill="#000">${bars}</g>${nameEl}${numEl}${priceEl}`;
+
+    let wrapped;
+    if (!rotate) wrapped = design;
+    else if (!flip) wrapped = `<g transform="translate(0,${H}) rotate(-90)">${design}</g>`;
+    else wrapped = `<g transform="translate(${W},0) rotate(90)">${design}</g>`;
+
+    return (
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${w}mm" height="${h}mm" ` +
+      `viewBox="0 0 ${W} ${H}" shape-rendering="crispEdges">` +
+      `<rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>${wrapped}</svg>`
+    );
+  }
+
   /* labels: [{ name, price, barcode }] — كل عنصر = ملصق واحد (كرّره حسب الكمية) */
   function buildHtml(labels, settings) {
     const w = Number(settings.labelWidthMm) || 50;
     const h = Number(settings.labelHeightMm) || 30;
-    const showName = settings.labelShowName !== false;
-    const showPrice = settings.labelShowPrice !== false;
-    const showStore = !!settings.labelShowStore;
-    const cur = settings.currency || 'ج.م';
-
-    // التدوير: auto = يدوّر تلقائيًا لو الملصق طويل ورفيع (الطول > العرض)
-    const rmode = settings.labelRotate || 'auto';
-    const rotate = rmode === 'v' || (rmode === 'auto' && h > w);
-    // اتجاه الدوران: الافتراضي -90° (غير مقلوب)، والقلب يجعله +90°
-    const angle = settings.labelFlip ? 90 : -90;
-    // أبعاد منطقة التصميم؛ بعد التدوير 90° تصبح أفقية وتملأ الملصق
-    const dw = rotate ? h : w; // عرض التصميم
-    const dh = rotate ? w : h; // ارتفاع التصميم
-    // ملصق صغير الارتفاع: نقلّل المحتوى ونصغّر الخطوط حتى لا يُقصّ
-    const tiny = dh <= 16;
-    const bcMm = Math.max(4, +(dh * (tiny ? 0.42 : 0.5)).toFixed(1));
-    const fName = tiny ? 4.5 : 6; // pt
-    const fCode = tiny ? 4 : 6;
-    const fPrice = tiny ? 6 : 8;
-    const showCode = !tiny; // على الملصق الصغير نكتفي بالباركود لتوفير المساحة
-
     const cells = labels
-      .map(
-        (l) => `<div class="page"><div class="lbl">
-          ${showStore ? `<div class="l-store">${_esc(settings.storeName || '')}</div>` : ''}
-          ${showName ? `<div class="l-name">${_esc(l.name)}</div>` : ''}
-          <div class="l-bc">${Barcode.svg(l.barcode)}</div>
-          ${showCode ? `<div class="l-code">${_esc(l.barcode)}</div>` : ''}
-          ${showPrice ? `<div class="l-price">${_money(l.price, cur)}</div>` : ''}
-        </div></div>`
-      )
+      .map((l) => `<div class="page">${labelSvg(l, settings)}</div>`)
       .join('');
 
     return `<!DOCTYPE html>
 <html lang="ar" dir="rtl"><head><meta charset="UTF-8"><style>
   @page { size: ${w}mm ${h}mm; margin: 0; }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: 'Cairo','Tahoma',sans-serif; color:#000; }
-  .page { width: ${w}mm; height: ${h}mm; position: relative; overflow: hidden; page-break-after: always; }
-  .lbl {
-    width: ${dw}mm; height: ${dh}mm;
-    position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, -50%)${rotate ? ` rotate(${angle}deg)` : ''};
-    padding: ${tiny ? '0.2mm 0.5mm' : '0.5mm 1mm'};
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; gap: ${tiny ? '0.1mm' : '0.3mm'}; line-height: 1;
-  }
-  .l-store { font-size: ${fName}pt; font-weight: bold; line-height: 1.05; }
-  .l-name { font-size: ${fName}pt; line-height: 1.05; max-height: ${tiny ? '1.1em' : '2.2em'}; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
-  .l-bc { width: 100%; height: ${bcMm}mm; }
-  .l-bc svg { display: block; width: 100%; height: 100%; }
-  .l-code { font-size: ${fCode}pt; letter-spacing: 1px; font-family: monospace; }
-  .l-price { font-size: ${fPrice}pt; font-weight: bold; }
+  body { margin: 0; }
+  .page { width: ${w}mm; height: ${h}mm; overflow: hidden; page-break-after: always; }
+  .page svg { display: block; width: 100%; height: 100%; }
 </style></head><body>${cells}</body></html>`;
   }
 
@@ -354,7 +408,7 @@ const Labels = (() => {
     }, 300);
   }
 
-  return { buildHtml, print, printZpl };
+  return { buildHtml, labelSvg, print, printZpl };
 })();
 
 window.Barcode = Barcode;
