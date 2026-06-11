@@ -505,6 +505,17 @@ const App = (() => {
         </div>
         <p class="form-note">تستخدم أزرار الاختبار القيم المعروضة بالأعلى (حتى قبل الحفظ) للتأكد من المقاس والطابعة.</p>
 
+        <div id="desktop-printers" style="display:none">
+          <h3 class="form-section-title">طابعات سطح المكتب (نسخة البرنامج المثبّت)</h3>
+          <p class="form-note">اختر أي طابعة للملصقات وأيها للإيصال. الطباعة تتم مباشرة بدون نافذة طباعة.</p>
+          <label>طابعة الملصقات (Zebra)
+            <select name="labelPrinterName"><option value="">— الطابعة الافتراضية —</option></select>
+          </label>
+          <label>طابعة الإيصال (Fujitsu)
+            <select name="receiptPrinterName"><option value="">— الطابعة الافتراضية —</option></select>
+          </label>
+        </div>
+
         <h3 class="form-section-title">إعدادات البيع والمخزون</h3>
         <label class="switch-row">
           <input type="checkbox" name="blockSaleWhenOutOfStock" ${app.blockSaleWhenOutOfStock ? 'checked' : ''} />
@@ -555,6 +566,8 @@ const App = (() => {
         receiptFooter: f.receiptFooter.value.trim(),
         printFormat: f.printFormat.value,
         labelPrinter: f.labelPrinter.value,
+        labelPrinterName: f.labelPrinterName ? f.labelPrinterName.value : '',
+        receiptPrinterName: f.receiptPrinterName ? f.receiptPrinterName.value : '',
         labelDpi: Number(f.labelDpi.value) || 203,
         labelWidthMm: Number(f.labelWidthMm.value) || 10,
         labelHeightMm: Number(f.labelHeightMm.value) || 40,
@@ -588,6 +601,8 @@ const App = (() => {
         receiptFooter: f.receiptFooter.value.trim(),
         printFormat: f.printFormat.value,
         labelPrinter: f.labelPrinter.value,
+        labelPrinterName: f.labelPrinterName ? f.labelPrinterName.value : '',
+        receiptPrinterName: f.receiptPrinterName ? f.receiptPrinterName.value : '',
         labelDpi: Number(f.labelDpi.value) || 203,
         labelWidthMm: Number(f.labelWidthMm.value) || 10,
         labelHeightMm: Number(f.labelHeightMm.value) || 40,
@@ -633,6 +648,29 @@ const App = (() => {
       );
       Utils.toast('تم فتح نافذة طباعة الإيصال التجريبي', 'success');
     };
+
+    // نسخة سطح المكتب: أظهر قوائم اختيار الطابعات واملأها بالطابعات المثبّتة
+    if (window.desktopPrint && window.desktopPrint.isDesktop) {
+      const box = document.getElementById('desktop-printers');
+      if (box) box.style.display = '';
+      window.desktopPrint.listPrinters().then((printers) => {
+        const fill = (sel, current) => {
+          if (!sel) return;
+          (printers || []).forEach((p) => {
+            const opt = document.createElement('option');
+            opt.value = p.name;
+            opt.textContent = p.displayName || p.name;
+            if (p.name === current) opt.selected = true;
+            sel.appendChild(opt);
+          });
+        };
+        const f = document.getElementById('settings-form');
+        if (f) {
+          fill(f.labelPrinterName, app.labelPrinterName);
+          fill(f.receiptPrinterName, app.receiptPrinterName);
+        }
+      });
+    }
   }
 
   /* ---------- قفل الشاشة ---------- */

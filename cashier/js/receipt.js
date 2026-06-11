@@ -127,6 +127,17 @@ const Receipt = (() => {
 
   function print(invoice, settings, opts) {
     const html = buildHtml(invoice, settings, opts);
+    // نسخة سطح المكتب (Electron): طباعة صامتة مباشرة بدون نافذة طباعة
+    if (window.desktopPrint && window.desktopPrint.isDesktop) {
+      const fmt = (settings && settings.printFormat) || '80mm';
+      const widthMm = fmt === '58mm' ? 58 : fmt === 'A4' ? 210 : 80;
+      const pName = (settings && settings.receiptPrinterName) || '';
+      window.desktopPrint.html(html, pName, widthMm).then((r) => {
+        if (r && !r.success && window.Utils && Utils.toast)
+          Utils.toast('تعذّرت طباعة الإيصال: ' + (r.reason || ''), 'error');
+      });
+      return;
+    }
     const iframe = document.createElement('iframe');
     iframe.setAttribute('aria-hidden', 'true');
     iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';

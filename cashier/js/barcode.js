@@ -382,9 +382,35 @@ const Labels = (() => {
     return { method: 'download' };
   }
 
+  // طباعة عبر نسخة سطح المكتب (Electron): ZPL خام للـ Zebra، وإلا طباعة HTML صامتة
+  function _desktopPrint(labels, settings) {
+    const dp = window.desktopPrint;
+    if (settings.labelPrinter === 'zebra-zpl') {
+      const data = Barcode.zpl(labels, settings);
+      dp.raw(settings.labelPrinterName || '', data).then((r) => {
+        if (!r || !r.success) {
+          if (window.Utils && Utils.toast)
+            Utils.toast('تعذّرت طباعة ZPL: ' + ((r && r.reason) || 'تحقق من اسم الطابعة'), 'error');
+        }
+      });
+    } else {
+      const html = buildHtml(labels, settings);
+      const w = Number(settings.labelWidthMm) || 50;
+      dp.html(html, settings.labelPrinterName || '', w).then((r) => {
+        if (r && !r.success && window.Utils && Utils.toast)
+          Utils.toast('تعذّرت طباعة الملصق: ' + (r.reason || ''), 'error');
+      });
+    }
+    return { method: 'desktop' };
+  }
+
   function print(labels, settings) {
     if (!labels || !labels.length) return;
     settings = settings || {};
+    // نسخة سطح المكتب: طباعة مباشرة بدون نافذة
+    if (window.desktopPrint && window.desktopPrint.isDesktop) {
+      return _desktopPrint(labels, settings);
+    }
     if (settings.labelPrinter === 'zebra-zpl') {
       return printZpl(labels, settings);
     }

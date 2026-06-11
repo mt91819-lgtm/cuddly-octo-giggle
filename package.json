@@ -1,0 +1,35 @@
+{
+  "name": "cashier-pro-offline",
+  "version": "1.0.0",
+  "description": "نظام كاشير أوفلاين - نسخة سطح المكتب (Electron) بطباعة مباشرة للطابعات",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64",
+    "dist:dir": "electron-builder --win --x64 --dir"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.cashierpro.offline",
+    "productName": "Cashier Pro",
+    "files": [
+      "electron/**/*",
+      "cashier/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Cashier Pro"
+    }
+  }
+}
