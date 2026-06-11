@@ -507,13 +507,16 @@ const App = (() => {
 
         <div id="desktop-printers" style="display:none">
           <h3 class="form-section-title">طابعات سطح المكتب (نسخة البرنامج المثبّت)</h3>
-          <p class="form-note">اختر أي طابعة للملصقات وأيها للإيصال. الطباعة تتم مباشرة بدون نافذة طباعة.</p>
+          <p class="form-note">يكتشف البرنامج الطابعات تلقائيًا. لو الاختيار غلط، صحّحه يدويًا ثم احفظ.</p>
           <label>طابعة الملصقات (Zebra)
             <select name="labelPrinterName"><option value="">— الطابعة الافتراضية —</option></select>
           </label>
           <label>طابعة الإيصال (Fujitsu)
             <select name="receiptPrinterName"><option value="">— الطابعة الافتراضية —</option></select>
           </label>
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost" id="autodetect-btn">🔍 اكتشاف الطابعات تلقائيًا</button>
+          </div>
         </div>
 
         <h3 class="form-section-title">إعدادات البيع والمخزون</h3>
@@ -649,26 +652,59 @@ const App = (() => {
       Utils.toast('تم فتح نافذة طباعة الإيصال التجريبي', 'success');
     };
 
-    // نسخة سطح المكتب: أظهر قوائم اختيار الطابعات واملأها بالطابعات المثبّتة
+    // نسخة سطح المكتب: أظهر قوائم اختيار الطابعات واملأها + اكتشاف تلقائي
     if (window.desktopPrint && window.desktopPrint.isDesktop) {
       const box = document.getElementById('desktop-printers');
       if (box) box.style.display = '';
+
+      // مطابقة اسم الطابعة بدورها حسب كلمات مميزة
+      const matchPrinter = (printers, role) => {
+        const re =
+          role === 'label'
+            ? /zebra|zdesigner|\bzd\d|\bzpl\b|godex|\btsc\b|sato|label|ملصق|barcode/i
+            : /fujitsu|\bfp[-\s]?\d|receipt|إيصال|فاتورة|\bpos\b|80mm|58mm|thermal|epson\s*tm|xprinter|x[-\s]?printer|rongta|\btm[-\s]?/i;
+        const hit = (printers || []).find((p) => re.test(p.name || '') || re.test(p.displayName || ''));
+        return hit ? hit.name : '';
+      };
+
       window.desktopPrint.listPrinters().then((printers) => {
+        const f = document.getElementById('settings-form');
+        if (!f) return;
         const fill = (sel, current) => {
           if (!sel) return;
           (printers || []).forEach((p) => {
             const opt = document.createElement('option');
             opt.value = p.name;
-            opt.textContent = p.displayName || p.name;
-            if (p.name === current) opt.selected = true;
+            opt.textContent = (p.displayName || p.name) + (p.isDefault ? ' (افتراضية)' : '');
             sel.appendChild(opt);
           });
+          if (current) sel.value = current;
         };
-        const f = document.getElementById('settings-form');
-        if (f) {
-          fill(f.labelPrinterName, app.labelPrinterName);
-          fill(f.receiptPrinterName, app.receiptPrinterName);
+        // لو لا يوجد اختيار محفوظ، اكتشف تلقائيًا
+        const labelGuess = app.labelPrinterName || matchPrinter(printers, 'label');
+        const receiptGuess = app.receiptPrinterName || matchPrinter(printers, 'receipt');
+        fill(f.labelPrinterName, labelGuess);
+        fill(f.receiptPrinterName, receiptGuess);
+
+        // أول مرّة: لو في طابعة Zebra واكتُشفت ولم يُحفظ شيء بعد، فعّل وضع ZPL ومقاس 10×40
+        if (!app.labelPrinterName && labelGuess && f.labelPrinter && f.labelPrinter.value !== 'zebra-zpl') {
+          f.labelPrinter.value = 'zebra-zpl';
         }
+
+        // زر الاكتشاف اليدوي
+        const btn = document.getElementById('autodetect-btn');
+        if (btn)
+          btn.onclick = () => {
+            const lg = matchPrinter(printers, 'label');
+            const rg = matchPrinter(printers, 'receipt');
+            if (lg) f.labelPrinterName.value = lg;
+            if (rg) f.receiptPrinterName.value = rg;
+            if (lg && f.labelPrinter) f.labelPrinter.value = 'zebra-zpl';
+            Utils.toast(
+              'تم الاكتشاف: ملصقات=' + (lg || 'غير معروفة') + ' | إيصال=' + (rg || 'غير معروفة') + ' — اضغط حفظ',
+              'info'
+            );
+          };
       });
     }
   }
