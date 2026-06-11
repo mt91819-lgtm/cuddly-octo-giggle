@@ -226,8 +226,15 @@ const App = (() => {
       }
     } catch (err) {
       console.error(err);
+      // عرض تفاصيل كاملة للتشخيص (الاسم + الرسالة + المكان)
+      const details =
+        (err && err.name ? err.name + ': ' : '') +
+        (err && err.message ? err.message : String(err)) +
+        (err && err.stack ? '\n' + err.stack.split('\n').slice(0, 4).join('\n') : '');
       document.getElementById('app').innerHTML =
-        '<div class="fatal">خطأ في تهيئة النظام: ' + Utils.escapeHtml(err.message) + '</div>';
+        '<div class="fatal">خطأ في تهيئة النظام:<br><pre style="direction:ltr;text-align:left;white-space:pre-wrap;font-size:12px">' +
+        Utils.escapeHtml(details) +
+        '</pre></div>';
     }
   }
 
